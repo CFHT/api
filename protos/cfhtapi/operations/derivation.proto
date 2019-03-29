@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.operations.derivation;
+option java_package = "edu.hawaii.cfht.protos.operations.derivation";
+option java_outer_classname = "PersistenceProtos";
+
+message FailedDerivationsData {
+    string error_message = 1;
+    repeated string stacktrace = 2;
+}

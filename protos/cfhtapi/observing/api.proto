@@ -1,0 +1,346 @@
+syntax = "proto3";
+
+package cfhtapi.observing;
+option java_package = "edu.hawaii.cfht.protos.observing.piapi";
+option java_outer_classname = "PiapiProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/observing/persistence.proto";
+import "cfhtapi/observing/persistence/observing_group.proto";
+import "google/api/annotations.proto";
+
+message Errors {
+    repeated string message = 1 [json_name = "messages"];
+}
+
+message FindingChartCreateOrUpdateRequest {
+    message Header {
+        string target_token = 1;
+        string comment = 2;
+
+        /** Idempotence key - set to the token to update, or generate a new token to create */
+        string finding_chart_token = 3;
+
+        /** We use this to serve the file type, i.e. png, jpg, or gif */
+        string file_name = 4;
+    }
+
+    /** Header should only be sent on the first part of the stream, then file_contents after */
+    oneof type {
+        Header header = 1;
+        bytes file_contents = 2;
+    }
+}
+
+message FindingChartCreateOrUpdateResponse {
+    bool success = 1;
+    Errors error = 2;
+    cfhtapi.observing.persistence.TargetData entity = 3 [json_name="target"];
+}
+
+message TargetUpdateRequest {
+    string runid = 1;
+    cfhtapi.observing.persistence.TargetData entity = 2 [json_name="target"];
+    string token = 3 [json_name="target_token"];
+}
+
+message TargetUpdateResponse {
+    bool success = 1;
+    Errors error = 2;
+    cfhtapi.observing.persistence.TargetData entity = 3 [json_name="target"];
+}
+
+message TargetListRequest {
+    string runid = 1;
+}
+
+message TargetListResponse {
+    bool success = 1;
+    repeated cfhtapi.observing.persistence.TargetData entity = 2 [json_name="target"];
+    Errors error = 3;
+}
+
+message TargetDeleteRequest {
+    string token = 1 [json_name = "target_token"];
+}
+
+message TargetDeleteResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message ObservingTemplateUpdateRequest {
+    string runid = 1;
+    string token = 2 [json_name="observing_template_token"];
+    cfhtapi.observing.persistence.ObservingTemplateData entity = 3 [json_name="observing_template"];
+}
+
+message ObservingTemplateUpdateResponse {
+    bool success = 1;
+    Errors error = 2;
+    cfhtapi.observing.persistence.ObservingTemplateData entity = 3 [json_name="observing_template"];
+}
+
+message ObservingTemplateListRequest {
+    string runid = 1;
+}
+
+message ObservingTemplateListResponse {
+    bool success = 1;
+
+    repeated cfhtapi.observing.persistence.ObservingTemplateData entity = 2 [json_name="observing_template"];
+    Errors error = 3;
+}
+
+message ObservingTemplateDeleteRequest {
+    string token = 1 [json_name = "observing_template_token"];
+}
+
+message ObservingTemplateDeleteResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message ObservingComponent {
+    oneof target_or_reference {
+        /**
+         * Deprecated, use ObservingGroupUpdateRequest.target
+         */
+        cfhtapi.observing.persistence.TargetData target = 1 [deprecated=true];
+        string target_token = 2;
+    }
+
+    oneof observing_template_or_reference {
+        /**
+         * Deprecated, use ObservingGroupUpdateRequest.observing_template
+         */
+        cfhtapi.observing.persistence.ObservingTemplateData observing_template = 3 [deprecated=true];
+        string observing_template_token = 4;
+    }
+
+    /**
+     * Populated when reading from the API
+     */
+    cfhtapi.observing.persistence.TargetData read_target = 5;
+    /**
+     * Populated when reading from the API
+     */
+    cfhtapi.observing.persistence.ObservingTemplateData read_observing_template = 6;
+}
+
+
+message ObservingGroupUpdateRequest {
+    //NextID: 11
+    string runid = 1;
+    string token = 2 [json_name="observing_group_token"];
+
+    cfhtapi.observing.persistence.ObservingGroupData entity = 10 [json_name="observing_group"];
+
+   /**
+     * If creating or updating targets with this request, set the data here.
+     *
+     * Key is the unique identifier of the target and must be prefixed with the runid.
+     * Value is the target data and must be valid. Otherwise, the whole request will fail.
+     *
+     * Observing components can then reference the unique identifier (the map key) in this same request.
+     */
+    map<string, cfhtapi.observing.persistence.TargetData> target = 8;
+    /**
+     * If creating or updating observing templates with this request, set the data here.
+     *
+     * Key is the unique identifier of the observing template and must be prefixed with the runid.
+     * Value is the observing template data and must be valid. Otherwise, the whole request will fail.
+     *
+     * Observing components can then reference the unique identifier (the map key) in this same request.
+     */
+    map<string, cfhtapi.observing.persistence.ObservingTemplateData> observing_template = 9;
+}
+
+message ObservingGroupUpdateResponse {
+    bool success = 1;
+
+    Errors error = 2;
+
+    cfhtapi.observing.persistence.ObservingGroupData entity = 3 [json_name="observing_group"];
+}
+
+message ObservingGroupListRequest {
+    string runid = 1;
+}
+
+message ObservingGroupListResponse {
+    bool success = 1;
+
+    repeated cfhtapi.observing.persistence.ObservingGroupData entity = 2 [json_name="observing_group"];
+
+    Errors error = 3;
+}
+
+message ObservingGroupDeleteRequest {
+    string token = 1 [json_name = "observing_group_token"];
+}
+
+message ObservingGroupDeleteResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+service TargetService {
+    rpc CreateOrUpdateTarget (TargetUpdateRequest) returns (TargetUpdateResponse) {
+        option (google.api.http) = {
+            put: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}targets/{token}"
+            body: "*"
+        };
+    }
+
+    rpc ListTarget (TargetListRequest) returns (TargetListResponse) {
+        option (google.api.http) = {
+            get: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}targets"
+        };
+    }
+
+    rpc UpdateFindingChart (stream FindingChartCreateOrUpdateRequest) returns (FindingChartCreateOrUpdateResponse ) {
+        option (google.api.http) = {
+            put: "/foo/bar"
+        };
+    }
+
+    rpc DeleteTarget (TargetDeleteRequest) returns (TargetDeleteResponse) {
+        option (google.api.http) = {
+            delete: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}targets/{token}"
+        };
+    }
+}
+
+service ObservingTemplateService {
+    rpc CreateOrUpdateObservingTemplate (ObservingTemplateUpdateRequest) returns (ObservingTemplateUpdateResponse) {
+        option (google.api.http) = {
+            put: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-templates/{token}"
+            body: "*"
+        };
+    }
+
+    rpc ListObservingTemplates (ObservingTemplateListRequest) returns (ObservingTemplateListResponse) {
+        option (google.api.http) = {
+            get: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-templates"
+        };
+    }
+
+    rpc DeleteObservingTemplate (ObservingTemplateDeleteRequest) returns (ObservingTemplateDeleteResponse) {
+        option (google.api.http) = {
+            delete: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-templates/{token}"
+        };
+    }
+}
+
+service ObservingGroupServiceProto {
+    rpc CreateOrUpdateObservingGroup (ObservingGroupUpdateRequest) returns (ObservingGroupUpdateResponse) {
+        option (google.api.http) = {
+            put: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-groups/{token}"
+            body: "*"
+        };
+    }
+
+    rpc ListObservingGroups (ObservingGroupListRequest) returns (ObservingGroupListResponse) {
+        option (google.api.http) = {
+            get: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-groups"
+        };
+    }
+
+    rpc DeleteObservingGroup (ObservingGroupDeleteRequest) returns (ObservingGroupDeleteResponse) {
+        option (google.api.http) = {
+            delete: "/{runid:(?:programs/(\\d\\d\\w\\w\\d\\d)/)?}observing-groups/{token}"
+        };
+    }
+}
+
+message ListProgramsRequest {
+}
+
+message ListProgramsResponse {
+    bool success = 1;
+    repeated cfhtapi.observing.persistence.ProgramData entity = 2 [json_name="program"];
+    Errors error = 3;
+}
+
+message UpdateProgramCommentRequest {
+    string runid = 1;
+    string comment = 2;
+}
+
+message UpdateProgramCommentResponse {
+    bool success = 1;
+    cfhtapi.observing.persistence.ProgramData program_data = 2;
+    Errors error = 3;
+}
+
+service ProgramService {
+    /** Programs will be scoped to the session **/
+    rpc ListPrograms (ListProgramsRequest) returns (ListProgramsResponse) {
+        option (google.api.http) = {
+            get: "/programs"
+        };
+    }
+
+    rpc UpdateProgramComment (UpdateProgramCommentRequest) returns (UpdateProgramCommentResponse) {
+        option (google.api.http) = {
+            put: "/programs/{runid:\\d\\d\\w\\w\\d\\d}/comment"
+            body: "*"
+        };
+    }
+}
+
+message StatusRequest {
+}
+
+message StatusResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+service HealthCheckService {
+    rpc Status (StatusRequest) returns (StatusResponse) {
+        option (google.api.http) = {
+            get: "/_status"
+        };
+    }
+}
+
+message JobReference {
+    string name  = 1;
+}
+
+message JobResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message ListJobRequest {
+}
+
+message ListJobResponse {
+    bool success = 1;
+    Errors error = 2;
+    repeated JobReference job_reference = 3;
+}
+
+service JobAdminService {
+    rpc DisableJob (JobReference) returns (JobResponse) {
+        option (google.api.http) = {
+            get: "/_jobs/{name}/disable"
+        };
+    }
+
+    rpc EnableJob (JobReference) returns (JobResponse) {
+        option (google.api.http) = {
+            get: "/_jobs/{name}/enable"
+        };
+    }
+
+    rpc ListJobs (ListJobRequest) returns (ListJobResponse) {
+        option (google.api.http) = {
+            get: "/_jobs"
+        };
+    }
+}

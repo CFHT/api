@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package cfhtapi.events;
+option java_package = "edu.hawaii.cfht.protos.events";
+option java_outer_classname = "EventsProtos";
+option java_multiple_files = true;
+
+import "cfhtapi/http.proto";
+import "cfhtapi/types.proto";
+
+message RequestEvent {
+    // Optional
+    string ldapUsername = 1;
+
+    cfhtapi.http.RequestMetadata request_metadata = 2;
+}
+
+enum ClockEventType {
+    NONE = 0;
+    SUNSET = 1;
+    CIVIL_TWILIGHT_AM = 2;
+    NAUTICAL_TWILIGHT_AM = 3;
+    ASTRONOMICAL_TWILIGHT_AM = 4;
+    SUNRISE = 5;
+    CIVIL_TWILIGHT_PM = 6;
+    NAUTICAL_TWILIGHT_PM = 7;
+    ASTRONOMICAL_TWILIGHT_PM = 8;
+    INSTRUMENT_TWILIGHT_AM = 9;
+    INSTRUMENT_TWILIGHT_PM = 10;
+    DARK = 11;
+}
+
+message ClockEvent {
+    ClockEventType event_type = 1;
+    cfhtapi.types.InstrumentType instrument = 5;
+    string event_token = 6;
+}
+
+message StatusServerEvent {
+    string short_name = 1;
+    string long_name = 2;
+    string value = 3;
+    int64 event_time_millis = 4;
+}

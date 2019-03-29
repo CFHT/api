@@ -1,0 +1,570 @@
+syntax = "proto3";
+
+package cfhtapi.queue;
+option java_package = "edu.hawaii.cfht.protos.observing.queue";
+option java_outer_classname = "QueueProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/queue/queue_data.proto";
+import "cfhtapi/observing/persistence.proto";
+import "cfhtapi/observing/persistence/queue.proto";
+import "cfhtapi/types.proto";
+import "google/api/annotations.proto";
+
+message Errors {
+    repeated string messages = 1 [json_name = "messages"];
+}
+
+message CreateQueueRequest {
+    /** queue token ex: 2018-04-30-a */
+    string token = 1;
+
+    /** collection of observing blocks within the queue */
+    repeated string observing_block_token = 2;
+    /** name of the queue */
+    string name = 3;
+    /** additional queue comments */
+    string comment = 4;
+    /** The observing instrument for this queue */
+    cfhtapi.types.InstrumentType instrument = 5;
+    /** planned queue date ex: 2018-08-01 */
+    string observation_date = 6;
+}
+
+message CreateQueueResponse {
+    bool success = 1;
+    Errors error = 2;
+    QueueData entity = 3;
+    /**
+     * The observing block models which back this queue.
+     *
+     * The indexes of queue.root_node.intermediate_node.queue_node[] map 1:1 with this list.
+     */
+    repeated cfhtapi.observing.persistence.ObservingBlockSnapshotData observing_block = 5;
+}
+
+message ListObservingBlocksRequest {
+    // Todo much more searching and such
+    /** currently lists observing blocks by program token */
+    oneof filter {
+        string program_token = 1;
+    }
+}
+
+message DeleteQueueRequest {
+    string token = 1;
+}
+
+message DeleteQueueResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+
+message ListObservingBlocksResponse {
+    bool success = 1;
+    Errors error = 2;
+    /** a collection of the observing blocks that have been processed by the system */
+    repeated cfhtapi.observing.persistence.ObservingBlockSnapshotData observing_block = 3;
+    /** a collection of new or edited observing blocks that have not been processed by the system, and thus times are not calculated */
+    repeated cfhtapi.observing.persistence.ObservingBlockSnapshotData dirty_observing_block = 4;
+}
+
+service QueueToolProtoService {
+    /**
+     * Responds with two lists of ObservingBlocks based on the program identified specified in the Request.
+     * If the ObservingBlock is new or edited and have not been processed by the Calculator task, the
+     * ObservingBlock is considered dirty and the exposure counts and times and their rollups are inaccurate.
+     */
+    rpc ListObservingBlocks (ListObservingBlocksRequest) returns (ListObservingBlocksResponse) {
+        option (google.api.http) = {
+            get: "/q/observing-blocks/{program_token}"
+        };
+    }
+
+    /**
+     * Creates or updates a queue
+     */
+    rpc CreateQueue (CreateQueueRequest) returns (CreateQueueResponse) {
+        option (google.api.http) = {
+            put: "/q/queues/old/{token}"
+            body: '*'
+        };
+    }
+
+    /**
+     * Creates or updates a queue
+     */
+    rpc CreateOrUpdateQueue (CreateQueueRequest) returns (CreateQueueResponse) {
+        option (google.api.http) = {
+            put: "/q/queues/{token}"
+            body: '*'
+        };
+    }
+
+    /**
+      * Responds with a list of queues based on the Requested Queue Token prefix and/or Date range
+      */
+    rpc ListQueues (ListQueueRequest) returns (ListQueueResponse) {
+        option (google.api.http) = {
+            get: "/q/queues"
+        };
+    }
+
+    /**
+     * Responds with the contents of a queue based on the Requested Queue Token
+     */
+    rpc ShowQueue (ShowQueueRequest) returns (ShowQueueResponse) {
+        option (google.api.http) = {
+            get: "/q/queues/{token}"
+        };
+    }
+
+    rpc DeleteQueue (DeleteQueueRequest) returns (DeleteQueueResponse) {
+        option (google.api.http) = {
+            delete: "/q/queues/{token}"
+            body: '*'
+        };
+    }
+}
+
+message DateRange {
+    /** yyyy-mm-dd inclusive */
+    string start = 1;
+
+    /** yyyy-mm-dd inclusive */
+    string end = 2;
+}
+
+message ListQueueRequest {
+    /** filters the list of queues to return based on matching the token prefix */
+    string token_prefix = 1;
+    /** filters the list of queues to return based on the date range */
+    DateRange date_range = 2;
+}
+
+message ListQueueResponse {
+    bool success = 1;
+    Errors error = 2;
+    /** a queue summary response */
+    repeated QueueSummaryData queue_summary_data = 3;
+}
+
+message ShowQueueRequest {
+    /** the queue token */
+    string token = 1;
+}
+
+message ShowQueueResponse {
+    bool success = 1;
+    Errors error = 2;
+    /** the queue */
+    QueueData queue = 3;
+
+    /** Client should use this to retrieve status updates in the future */
+    int64 current_timestamp_millis = 4;
+
+    /**
+     * The observing block models which back this queue.
+     *
+     * The indexes of queue.root_node.intermediate_node.queue_node[] map 1:1 with this list.
+     */
+    repeated cfhtapi.observing.persistence.ObservingBlockSnapshotData observing_block = 5;
+}
+
+message CaptureExposureRequest {
+    // YYYY-mm-dd-label
+    string queue_token = 1;
+    // 0.0.0.1
+    string observation_address = 2;
+
+    string session_name = 3;
+
+    // Instrument
+    cfhtapi.types.InstrumentType instrument = 4;
+}
+
+message CaptureExposureResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message StateUpdateSinceRequest {
+    int64 timestamp_millis = 1;
+}
+
+message StateUpdateSinceResponse {
+    int64 current_timestamp_millis = 1;
+}
+
+message CreateObservingSessionRequest {
+}
+
+message CreateObservingSessionResponse {
+}
+
+
+message ShowObservingSessionRequest {
+}
+
+message ShowObservingSessionResponse {
+}
+
+message ShowCaptureStatusRequest {
+    string session_name = 4;
+}
+
+enum CaptureStatus {
+    IDLE = 0;
+    ACTIVE = 1;
+    ERROR = 2;
+    PAUSED = 3;
+}
+
+message PauseObservingSessionRequest {
+    string session_name = 4;
+}
+
+message PauseObservingSessionResponse {
+    bool success = 1;
+    Errors error = 2;
+
+}
+
+message AbortObservingSessionRequest {
+    string session_name = 4;
+}
+
+message AbortObservingSessionResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message StopObservingSessionRequest {
+    string session_name = 4;
+}
+
+message StopObservingSessionResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message ResumeObservingSessionRequest {
+    string session_name = 4;
+}
+
+message ResumeObservingSessionResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message ShowCaptureStatusResponse {
+    bool success = 1;
+    Errors error = 2;
+
+    CaptureStatus capture_status = 3;
+
+    /** when true, snr observing is possible */
+    bool snr_enabled = 4;
+
+    bool idle_queue_sound_enabled = 5;
+}
+
+message SetSnrObservingRequest {
+    bool enabled = 1;
+}
+
+message SetSnrObservingResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+
+message SendSpirouCalibrationsRequest {
+    string session_name = 1;
+}
+
+message SendSpirouCalibrationsResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message SendStartOfNightSkyRequest {
+    string session_name = 1;
+}
+
+message SendStartOfNightSkyResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+service ObservingToolProtoService {
+
+    rpc CaptureExposure (CaptureExposureRequest) returns (CaptureExposureResponse) {
+        option (google.api.http) = {
+            post: "/q/queues/{queue_token}/capture/{observation_address:(.*)?}"
+            body: '*'
+        };
+    }
+
+    rpc ShowCaptureStatus (ShowCaptureStatusRequest) returns (ShowCaptureStatusResponse) {
+        option (google.api.http) = {
+            // TODO: replace session_name with a public token, and use a GEt instead of post
+            post: "/q/observing-session/capture-status"
+            body: '*'
+        };
+    }
+
+    rpc CreateObservingSession (CreateObservingSessionRequest) returns (CreateObservingSessionResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session"
+            body: '*'
+        };
+    }
+
+
+    rpc PauseObservingSession (PauseObservingSessionRequest) returns (PauseObservingSessionResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/pause"
+            body: '*'
+        };
+    }
+
+    rpc AbortObservingSession (AbortObservingSessionRequest) returns (AbortObservingSessionResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/abort"
+            body: '*'
+        };
+    }
+
+    rpc StopObservingSession (StopObservingSessionRequest) returns (StopObservingSessionResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/stop"
+            body: '*'
+        };
+    }
+
+    rpc ResumeObservingSession (ResumeObservingSessionRequest) returns (ResumeObservingSessionResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/resume"
+            body: '*'
+        };
+    }
+
+    rpc SetSnrObserving (SetSnrObservingRequest) returns (SetSnrObservingResponse) {
+        option (google.api.http) = {
+            put: "/q/observing-session/snr"
+            body: '*'
+        };
+    }
+
+    rpc SendSpirouCalibrations (SendSpirouCalibrationsRequest) returns (SendSpirouCalibrationsResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/send-spirou-calibrations"
+            body: '*'
+        };
+    }
+
+    rpc SendStartOfNightSky (SendStartOfNightSkyRequest) returns (SendStartOfNightSkyResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/send-start-of-night-sky"
+            body: '*'
+        };
+    }
+
+    rpc ShowObservingSession (ShowObservingSessionRequest) returns (ShowObservingSessionResponse) {
+        option (google.api.http) = {
+            get: "/q/observing-session"
+        };
+    }
+}
+
+// Rosters can only be created with a token and observation addresses. The state is then modified
+// by subsequent APIs, like OBSERVE.
+message UpdateRosterRequest {
+    string roster_token = 1;
+    /** Named secret to indicate it should not be shared or put in URL */
+    string observing_session_secret = 2;
+
+    repeated ObservationAddress observation_address = 3;
+}
+
+message UpdateRosterResponse {
+    bool success = 1;
+    Errors error = 2;
+    /** Must be applied in order, last write wins */
+    StateUpdate state_update = 3;
+}
+
+message ModifyRosterRequest {
+    string roster_token = 1;
+    /** Named secret to indicate it should not be shared or put in URL */
+    string observing_session_secret = 2;
+
+    repeated ObservationAddress additional_observation_address = 3;
+
+    repeated ObservationAddress remove_observation_address = 4;
+}
+
+message ModifyRosterResponse {
+    bool success = 1;
+    Errors error = 2;
+    RosterData roster = 3;
+}
+
+message ObserveRosterRequest {
+    string roster_token = 1;
+
+    /**
+     * These observations will be appended to the end of the current list of addresses.
+     *
+     * Allows from observing directly from the queue area in one network call.
+     */
+    repeated ObservationAddress additional_observation_address = 2;
+}
+
+message ObserveRosterResponse {
+    bool success = 1;
+    Errors error = 2;
+    RosterData roster = 3;
+}
+
+service RosterProtoService {
+    /** May only be called when the roster is in the CANDIDATE state. */
+    rpc CreateOrUpdateRoster (UpdateRosterRequest) returns (UpdateRosterResponse) {
+        option (google.api.http) = {
+            put: "/q/observing-session/rosters/{roster_token}"
+            body: '*'
+        };
+    }
+
+    /**
+     * Rosters can only have one of each address, so the endpoint is idempotent.
+     *
+     * May only be called when the roster is in the CANDIDATE state.
+     */
+    rpc ModifyObservations (ModifyRosterRequest) returns (ModifyRosterRequest) {
+        option (google.api.http) = {
+            patch: "/q/observing-session/rosters/{roster_token}"
+            body: '*'
+        };
+    }
+
+    // observing-session-secret
+    rpc ObserveRoster (ObserveRosterRequest) returns (ObserveRosterResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/rosters/{roster_token}/observe"
+            body: '*'
+        };
+    }
+    // TODO: cancel observation
+}
+
+
+message GetTargetPlotFactorsRequest {
+}
+
+message GetTargetPlotFactorsResponse {
+    bool success = 1;
+    Errors error = 2;
+
+    StatusServerTargetPlotData data = 3;
+}
+
+service TargetPlotServiceProto {
+    rpc GetTargetPlotFactors (GetTargetPlotFactorsRequest) returns (GetTargetPlotFactorsResponse) {
+        option (google.api.http) = {
+            post: "/q/observing-session/target-plot/factors"
+            body: '*'
+        };
+    }
+}
+
+message EnableIdleQueueServiceRequest {
+    bool enabled = 1;
+}
+
+message EnableIdleQueueServiceResponse {
+    bool success = 1;
+    Errors error = 2;
+}
+
+message GetIdleQueueStatusRequest {
+}
+
+message GetIdleQueueStatusResponse {
+    bool success = 1;
+    Errors error = 2;
+    bool enabled = 3;
+    bool queue_is_idle = 4;
+    int64 idle_timestamp_millis = 5;
+}
+
+
+service IdleQueueServiceProto {
+    rpc EnableIdleQueueService (EnableIdleQueueServiceRequest) returns (EnableIdleQueueServiceResponse) {
+        option (google.api.http) = {
+            put: "/q/observing-session/idle-queue-listener/enable"
+            body: '*'
+        };
+    }
+    rpc GetIdleQueueStatus (GetIdleQueueStatusRequest) returns (GetIdleQueueStatusResponse) {
+        option (google.api.http) = {
+            get: "/q/observing-session/idle-queue-listener/status"
+            body: '*'
+        };
+    }
+}
+
+message GetSpirouConfigurationRequest {
+}
+
+message GetSpirouConfigurationResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.SpirouConfig spirou_config = 3;
+    cfhtapi.observing.persistence.SpirouCalibrationStatus spirou_calibration_status = 4;
+}
+
+message RunSpirouCalibrationsRequest {
+}
+
+message RunSpirouCalibrationsResponse {
+    bool success = 1;
+    Errors errors = 2;
+}
+
+message UpdateSpirouConfigurationRequest {
+    string run_at_time_string_utc = 1;
+    bool auto_run = 2;
+}
+
+message UpdateSpirouConfigurationResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.MetadataData metadata = 3;
+}
+
+message GetSpirouCalibrationsStatusRequest {
+}
+
+service SpirouAdministrationProtoService {
+    rpc RunSpirouCalibrations (RunSpirouCalibrationsRequest) returns (RunSpirouCalibrationsResponse) {
+        option (google.api.http) = {
+            post: "/op/spirou/calibrations/run"
+            body: "*"
+        };
+    }
+    rpc GetSpirouConfiguration (GetSpirouConfigurationRequest) returns (GetSpirouConfigurationResponse) {
+        option (google.api.http) = {
+            get: "/op/spirou/configuration/"
+        };
+    }
+    rpc UpdateSpirouConfiguration (UpdateSpirouConfigurationRequest) returns (UpdateSpirouConfigurationResponse) {
+        option (google.api.http) = {
+            put: "/op/spirou/configuration/"
+            body: "*"
+        };
+    }
+}

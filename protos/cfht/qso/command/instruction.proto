@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package cfht.qso.command;
+option java_package = "edu.hawaii.cfht.protos.qso.command";
+option java_outer_classname = "InstructionProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+
+message InstrumentInstruction {
+    message MegacamInstruction {
+    }
+
+    message WircamInstruction {
+    }
+
+    message SitellInstruction {
+    }
+
+    message EspadonsInstruction {
+    }
+}
+
+message ExposureTime {
+    oneof mode {
+        double desired_snr = 1;
+        int32 exposure_time_seconds = 2;
+    }
+}
+
+message ExposureInstruction {
+    ExposureTime exposure_time = 1;
+
+
+    cfhtapi.types.ExposureType exposure_type = 2;
+}
+
+message TelescopeInstruction {
+
+}
+
+/**
+ * Absolute configuration for the observation, sent to the breaker.
+ * The breaker can be smart about chained observing instructions
+ * and skip/coelece commands to optimize observing.
+ */
+message ObservingInstruction {
+    /**
+     * Absolute settings the TCS should respect.
+     */
+    TelescopeInstruction telescope_instruction = 1;
+
+    /**
+     * Absolute settings the instrument should respect.
+     */
+    InstrumentInstruction instrument_instruction = 2;
+
+    /*
+     * Absolute settings for capturing the image
+     */
+    ExposureInstruction exposure_instruction = 3;
+
+    repeated cfhtapi.types.Header headers = 4;
+}

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package cfht.admin;
+
+option java_package = "edu.hawaii.cfht.protos.admin";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+
+/*message LoginRequest {
+    string username = 1;
+    string password = 2 [redacted = true];
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+}*/
+
+message ChangePasswordRequest {
+    string current_password = 1 [redacted = true];
+
+    string new_password = 1 [redacted = true];
+
+    string new_password_confirm = 1 [redacted = true];
+}
+
+message ChangePasswordResponse {
+    bool success = 1;
+}
+
+message GetPasswordRulesRequest {
+}
+
+message GetPasswordRulesResponse {
+    repeated rules = 1;
+}
+

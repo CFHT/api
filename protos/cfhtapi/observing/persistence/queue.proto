@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.observing.persistence;
+option java_package = "edu.hawaii.cfht.protos.observing.persistence";
+option java_outer_classname = "QueueProtos";
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+import "cfhtapi/options.proto";
+import "cfhtapi/observing/persistence.proto";
+import "cfhtapi/observing/persistence/observing_group.proto";
+
+message QueueData {
+    // Next ID 8
+    repeated string observing_block_token = 6;
+
+    string name = 2;
+    string comment = 3;
+    cfhtapi.types.InstrumentType instrument = 4;
+    string observation_date = 5;
+    string token = 7;
+}
+
+// Lives on the observing_blocks_queues table.
+// Can be pruned, Exposures contain snapshot of information.
+// Stored in a seperate field so it doesn't have to be loaded to get metadata.
+message ObservingBlockSnapshotData {
+    message ObservingComponent {
+        ObservingTemplateData observing_template = 1;
+        TargetData target = 2;
+        string token = 3 [deprecated = true];
+    }
+
+    message ProgramContext {
+        /** Printable format of first and last name of the PI */
+        string pi_name = 1;
+        /** When the proprietary period expires */
+        int64 release_date_millis = 2;
+        /** When the metadata period expires */
+        int64 metadata_release_date_millis = 3;
+        /** tac rank assigned to by tac */
+        int32 tac_rank = 4;
+        /** tac grade assigned by tac */
+        string tac_grade = 5;
+        /** The runid which will be associated with this observation */
+        string runid = 6;
+
+        cfhtapi.observing.persistence.ProgramData.ProgramType program_type = 7;
+    }
+
+    /** ObservingBlock token */
+    string token = 1;
+    /** collection of observing components that make up the observing block */
+    repeated ObservingComponent observing_component = 2;
+
+    /** Contains information specific to the program for this OB */
+    ProgramContext program_context = 3 [json_name="aux_data"];
+
+    /** The observingblock (ob) label */
+    int32 label = 4;
+
+    /** Estimated time + overheads for observing this observing block in millis */
+    int64 estimated_exposure_integration_time_millis = 5;
+    /** Total exposure count for this observing block */
+    int32 requested_exposure_count = 6;
+    /** The coordinates of the first target of this observing block */
+    cfhtapi.types.SkyCoordinate start_coordinate = 7;
+    /** The coordinates of the last target of this observing block */
+    cfhtapi.types.SkyCoordinate end_coordinate = 8;
+
+    /** State of this observing block */
+    cfhtapi.observing.persistence.State state = 9;
+
+    message ObservingGroupContext {
+        /** The iteration number this OB represents in the observing group */
+        int32 iteration_count = 1;
+        /** The total number of iterations requested for the observing group */
+        int32 iteration_total = 2;
+
+        /** Sorted by from past -> future on the observe_after key */
+        repeated cfhtapi.observing.persistence.ObservingBlockCondition.Window window = 3;
+
+        string observing_group_token = 4;
+
+        ObservingGroupPriority observing_group_priority = 5;
+    }
+
+    ObservingGroupContext observing_group_context = 10;
+
+}

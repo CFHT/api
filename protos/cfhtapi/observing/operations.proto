@@ -1,0 +1,557 @@
+syntax = "proto3";
+
+package cfhtapi.observing;
+option java_package = "edu.hawaii.cfht.protos.observing.operationsapi";
+option java_outer_classname = "OperationsApiProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "google/protobuf/wrappers.proto";
+import "cfhtapi/types.proto";
+import "cfhtapi/observing/api.proto";
+import "cfhtapi/observing/persistence.proto";
+import "cfhtapi/observing/persistence/subtotals.proto";
+import "google/api/annotations.proto";
+
+message SemesterData {
+    string semesterToken = 1;
+
+    int64 start_at_millis = 2;
+
+    int64 end_at_millis = 3;
+}
+
+message SemesterListRequest {
+}
+
+message SemesterListResponse {
+    bool success = 1;
+    repeated SemesterData entity = 2 [json_name = "semester"];
+    Errors error = 3;
+}
+
+message InstrumentData {
+    cfhtapi.types.InstrumentType value = 1;
+    string display_name = 2;
+}
+
+message InstrumentListRequest {
+}
+
+message InstrumentListResponse {
+    bool success = 1;
+    repeated InstrumentData entity = 2 [json_name = "instrument"];
+    Errors error = 3;
+}
+
+message RunIdData {
+    //TODO: store different stuff here?
+    string run_id = 1;
+    string pi_last_name = 2;
+}
+
+message ListRunIdResponse {
+    bool success = 1;
+    repeated RunIdData entity = 2 [json_name = "runid"];
+    Errors error = 3;
+}
+
+message QueueRunData {
+    string qrunid = 1;
+    DateRangeData date_range = 2;
+}
+
+message DataBySemesterAndInstrumentRequest {
+    oneof semester_selection {
+        SemesterData semester = 1 [deprecated = true];
+
+        string semester_name = 4;
+    }
+
+    oneof instrument_selection {
+        InstrumentData instrument = 2 [deprecated = true];
+
+        cfhtapi.types.InstrumentType instrument_name = 3;
+    }
+}
+
+message ListQueueRunResponse {
+    bool success = 1;
+    repeated QueueRunData entity = 2 [json_name = "queue_run"];
+    Errors error = 3;
+}
+
+message DateData {
+    //TODO: store different stuff here?
+    string value = 1;
+}
+
+message DateRangeData {
+    DateData start = 1;
+    DateData end = 2;
+}
+
+message GetLastDateRequest {
+}
+
+message GetLastDateResponse {
+    bool success = 1;
+    DateData date = 2;
+    Errors error = 3;
+}
+
+message GetExposureRequest {
+    int32 obsid = 1;
+}
+
+message GetExposureResponse {
+    bool success = 1;
+    cfhtapi.observing.persistence.ExposureData exposure = 2;
+    Errors error = 3;
+}
+
+message ListExposuresRequest {
+    message ObsIdRange {
+        int32 first = 1;
+        int32 last = 2;
+    }
+    oneof query {
+        DateData night = 1;
+        ObsIdRange obsid_range = 2;
+        string qrunid = 3;
+        string runid = 4;
+    }
+}
+
+message ListExposuresResponse {
+    bool success = 1;
+    repeated cfhtapi.observing.persistence.ExposureData entity = 2 [json_name = "exposure"];
+    Errors error = 3;
+}
+
+
+message GetExposureStatusRequest {
+    string obsid = 1;
+}
+
+message GetExposureStatusResponse {
+    bool success = 1;
+    cfhtapi.observing.persistence.ExposureData exposure = 2;
+    Errors error = 3;
+}
+
+
+service GlobalDataService {
+    rpc ListSemesters (SemesterListRequest) returns (SemesterListResponse) {
+        option (google.api.http) = {
+            get: "/op/semesters"
+        };
+    }
+
+    rpc ListInstruments (InstrumentListRequest) returns (InstrumentListResponse) {
+        option (google.api.http) = {
+            get: "/op/instruments"
+        };
+    }
+
+    rpc ListRunIds (DataBySemesterAndInstrumentRequest) returns (ListRunIdResponse) {
+        option (google.api.http) = {
+            post: "/op/runids"
+        };
+    }
+
+    rpc ListQueueRuns (DataBySemesterAndInstrumentRequest) returns (ListQueueRunResponse) {
+        option (google.api.http) = {
+            post: "/op/qrunids"
+        };
+    }
+
+    rpc GetLastDate (GetLastDateRequest) returns (GetLastDateResponse) {
+        option (google.api.http) = {
+            get: "/op/lastdate"
+        };
+    }
+
+    rpc GetExposure (GetExposureRequest) returns (GetExposureResponse) {
+        option (google.api.http) = {
+            get: "/op/exposures/{obsid}"
+        };
+    }
+
+    rpc ListExposures (ListExposuresRequest) returns (ListExposuresResponse) {
+        option (google.api.http) = {
+            post: "/op/exposures"
+            body: "*"
+        };
+    }
+}
+
+//TODO: add action to grab weather log
+
+message RollupFields {
+    cfhtapi.observing.persistence.RollupValue i_time = 1;
+    cfhtapi.observing.persistence.RollupValue i_time_configured = 2;
+    cfhtapi.observing.persistence.SubTotalsData sub_totals = 3;
+}
+
+message ProgramInfo {
+    cfhtapi.observing.persistence.ProgramData program_data = 1;
+    RollupFields rollup_fields = 2;
+}
+
+message GetProgramStatusRequest {
+    string runid = 1;
+}
+
+message GetProgramStatusResponse {
+    bool success = 1;
+    ProgramInfo program_info = 2;
+    Errors error = 3;
+}
+
+message ListProgramExposuresRequest {
+    string runid = 1;
+}
+
+message ListProgramExposuresResponse {
+    bool success = 1;
+    repeated cfhtapi.observing.persistence.ExposureData entity = 2 [json_name = "exposure"];
+    Errors error = 3;
+}
+
+//TODO: eventually there should be a separte endpoint for accessing as a PI vs operations -- data may be masked
+service ProgramDataService {
+    rpc GetProgramStatus (GetProgramStatusRequest) returns (GetProgramStatusResponse) {
+        option (google.api.http) = {
+            get: "/program/{runid}/stats"
+        };
+    }
+
+    rpc ListProgramExposures (ListProgramExposuresRequest) returns (ListProgramExposuresResponse) {
+        option (google.api.http) = {
+            get: "/program/{runid}/exposures"
+        };
+    }
+}
+
+// Google python library does not include the value for the box types... good adaption, but I need to change server to support it
+message Int32Box {
+    int32 value = 1;
+}
+
+message CreateOrUpdateExposureRequest {
+    string exposure_token = 1;
+    string observing_component_token = 2;
+    Int32Box observing_component_exposure_number = 3;
+    cfhtapi.observing.persistence.ExposureData exposure = 4;
+    string obsid = 5;
+    string queue_token = 6;
+    string observing_block_token = 7;
+}
+
+message CreateOrUpdateExposureResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.ExposureData exposure = 3;
+}
+
+message GradeExposureRequest {
+    string obsid = 1;
+    int32 grade = 2;
+    string observer_comment = 3;
+}
+
+message ValidateExposureRequest {
+    string obsid = 1;
+    int32 grade = 2;
+    cfhtapi.observing.persistence.State status = 3;
+    string coordinator_comment = 4;
+}
+
+message ResetExposureStatusObservedRequest {
+    string obsid = 1;
+}
+
+message ExposureProcessedRequest {
+    string exposure_token = 1 [deprecated = true];
+    string observing_component_token = 2 [deprecated = true];
+    Int32Box observing_component_exposure_number = 3 [deprecated = true];
+    string obsid = 4;
+
+    oneof processing_result {
+        cfhtapi.observing.persistence.ExposureData.SpirouStatus.ExposureMeterProcessingResult spirou_exposure_meter = 5;
+        cfhtapi.observing.persistence.ExposureData.SpirouStatus.GuiderProcessingResult spirou_guiding = 6;
+        cfhtapi.observing.persistence.ExposureData.SpirouStatus.PipelineProcessingResult spirou_pipeline = 7;
+    }
+}
+
+message ExposureProcessedResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.ExposureData exposure = 3;
+}
+
+
+service ExposureService {
+    rpc GetExposureStatus (GetExposureStatusRequest) returns (GetExposureStatusResponse) {
+        option (google.api.http) = {
+            get: "/op/exposure-status/{obsid}"
+        };
+    }
+
+    rpc ExposureUnobserved (CreateOrUpdateExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/unobserved"
+            body: "*"
+        };
+    }
+
+    rpc ExposureObserved (CreateOrUpdateExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/observed"
+            body: "*"
+        };
+    }
+
+    rpc NonQueueExposureObserved (CreateOrUpdateExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/nonqueue"
+            body: "*"
+        };
+    }
+
+    rpc ExposureProcessed (ExposureProcessedRequest) returns (ExposureProcessedResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/processed"
+            body: "*"
+        };
+    }
+
+    rpc ExposureGraded (GradeExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/grade"
+            body: "*"
+        };
+    }
+
+    rpc ExposureValidated (ValidateExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/validate"
+            body: "*"
+        };
+    }
+
+    rpc ExposureRejected (ValidateExposureRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/reject"
+            body: "*"
+        };
+    }
+
+    rpc ExposureUnvalidated (ResetExposureStatusObservedRequest) returns (CreateOrUpdateExposureResponse) {
+        option (google.api.http) = {
+            put: "/op/exposures/{obsid}/reset"
+            body: "*"
+        };
+    }
+
+}
+//TODO: have both operations endpoints and PI endpoints for the above
+
+
+message CreateOrUpdateWeatherLogRequest {
+    string event_token = 1;
+    cfhtapi.observing.persistence.WeatherLogData weather_log = 3;
+}
+
+message CreateOrUpdateWeatherLogResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.WeatherLogData weather_log = 3;
+}
+
+service WeatherLogProtoService {
+    rpc WeatherEventData (CreateOrUpdateWeatherLogRequest) returns (CreateOrUpdateWeatherLogResponse) {
+        option (google.api.http) = {
+            put: "/op/weather-log/{event_token}"
+            body: "*"
+        };
+    }
+}
+
+message CreateOrUpdateObserverLogRequest {
+    string event_token = 1;
+    cfhtapi.observing.persistence.ObserverLogData observer_log = 3; // TODO REMEMBER TO FIX THESE NUMBERS
+}
+
+message CreateOrUpdateObserverLogResponse {
+    bool success = 1;
+    Errors errors = 2;
+    cfhtapi.observing.persistence.ObserverLogData observer_log = 3;
+}
+
+service ObserverLogProtoService {
+    rpc ObserverEventData (CreateOrUpdateObserverLogRequest) returns (CreateOrUpdateObserverLogResponse) {
+        option (google.api.http) = {
+            put: "/op/observer-log/{event_token}"
+            body: "*"
+        };
+    }
+}
+
+enum EventType {
+    ALL = 0;
+    EXPOSURE = 1;
+    WEATHER = 2;
+    OBSERVER = 3;
+    CLOCK = 4;
+    STATUS_SERVER = 5;
+}
+
+message GetEventLogsRequest {
+    // TODO, revist the DateRangeData, currently, I don't like it.
+    //DateRangeData date_range = 1;
+    int64 start_millis = 1;
+    int64 end_millis = 2;
+    EventType event_type = 3;
+}
+
+message GetEventLogsResponse {
+    bool success = 1;
+    Errors errors = 2;
+
+    repeated cfhtapi.observing.persistence.EventData event_logs = 3;
+}
+
+message GetEventLogRequest {
+    string event_log_token = 1;
+}
+
+message GetEventLogResponse {
+    bool success = 1;
+    Errors errors = 2;
+
+    cfhtapi.observing.persistence.EventData event_log = 3;
+}
+
+service EventLogProtoService {
+    rpc GetEvents (GetEventLogsRequest) returns (GetEventLogsResponse) {
+        option (google.api.http) = {
+            post: "/op/event-logs"
+            // todo: go back to get when we can support the params https://www.pivotaltracker.com/story/show/158377314
+        };
+    }
+
+    rpc GetEvent (GetEventLogRequest) returns (GetEventLogResponse) {
+        option (google.api.http) = {
+            post: "/op/event-logs/{event_token}"
+        };
+    }
+}
+
+message GetStatusServerDataRequest {
+    int64 request_time_millis = 1;
+    string key = 2;
+}
+
+message GetStatusServerDataResponse {
+    bool success = 1;
+    Errors errors = 2;
+    string value = 3;
+}
+
+service StatusServerDataProtoService {
+    rpc GetStatusServerData (GetStatusServerDataRequest) returns (GetStatusServerDataResponse) {
+        option (google.api.http) = {
+            get: "/op/status-server/{key}"
+        };
+    }
+}
+
+message CdsTargetData {
+    message Request {
+        string name = 1;
+        cfhtapi.types.SkyCoordinate target = 2;
+        int64 date_req_millis = 3;
+    }
+
+    message Record {
+        double distance = 1;
+        string name = 2;
+        string type = 3;
+        cfhtapi.types.SkyCoordinate target = 4;
+        double pm_ra = 5;
+        double pm_dec = 6;
+    }
+
+    Request request = 1;
+    repeated Record response = 2;
+}
+
+message GetCdsTargetsRequest {
+    int64 request_time_millis = 1;
+    string name = 2;
+    cfhtapi.types.SkyCoordinate target = 3;
+    double radius = 4;
+    int64 max_results = 5;
+}
+
+message GetCdsTargetsResponse {
+    bool success = 1;
+    Errors errors = 2;
+    CdsTargetData data = 3;
+}
+
+message CheckReservedTargetsResponse {
+    message ReservedTarget {
+        string canonical_name = 1;
+        double distance = 2;
+        cfhtapi.observing.persistence.TargetData target = 3;
+    }
+
+    bool success = 1;
+    Errors errors = 2;
+
+
+    repeated ReservedTarget conflicting_reserved_targets = 3;
+}
+
+message GetConflictingReservedTargetsRequest {
+    int64 request_time_millis = 1;
+}
+
+message GetConflictingReservedTargetsResponse {
+    bool success = 1;
+    Errors errors = 2;
+
+    repeated cfhtapi.observing.persistence.TargetData entity = 3 [json_name = "target"];
+}
+
+service GetCdsTargetsProtoService {
+    rpc GetCdsTargetsByName (GetCdsTargetsRequest) returns (GetCdsTargetsResponse) {
+        option (google.api.http) = {
+            put: "/op/cds-targets-by-name/"
+        };
+    }
+    rpc GetCdsTargetsByRaDec (GetCdsTargetsRequest) returns (GetCdsTargetsResponse) {
+        option (google.api.http) = {
+            put: "/op/cds-targets-by-radec/"
+            body: "*"
+        };
+    }
+
+    rpc CheckReservedCfhtTargets (GetCdsTargetsRequest) returns (CheckReservedTargetsResponse) {
+        option (google.api.http) = {
+            put: "/op/check-reserved-targets/"
+            body: "*"
+        };
+    }
+
+    rpc GetConflictingReservedTargets (GetConflictingReservedTargetsRequest) returns (GetConflictingReservedTargetsResponse) {
+        option (google.api.http) = {
+            get: "/op/get-conflicting-reserved-targets/"
+            body: "*"
+        };
+    }
+}
+

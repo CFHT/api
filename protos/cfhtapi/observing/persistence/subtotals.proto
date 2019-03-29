@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.observing.persistence;
+option java_package = "edu.hawaii.cfht.protos.observing.persistence";
+option java_outer_classname = "SubtotalsProtos";
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+import "cfhtapi/options.proto";
+
+message RollupValue {
+    int64 requested = 1;
+    int64 started = 2;
+    int64 observed = 3;
+    int64 validated = 4;
+}
+
+message SubTotalsData {
+    RollupValue etime = 1;
+    RollupValue overheadtime = 2;
+    RollupValue exposure_count = 3;
+    RollupValue child_count = 4;
+    RollupValue etime_configured = 5;
+    RollupValue overhead_time_configured = 6;
+}

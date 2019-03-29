@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+// Complete WIP for brainstorming
+package cfhtapi.queue;
+option java_package = "edu.hawaii.cfht.protos.breaker";
+option java_outer_classname = "BreakerProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/observing/persistence.proto";
+import "cfhtapi/types.proto";
+
+message QueueSummaryData {
+    string token = 1;
+
+    string name = 3;
+    string notes = 4;
+    cfhtapi.types.InstrumentType instrument = 5;
+    string observation_date = 6;
+}
+
+message QueueData {
+    string token = 1;
+
+    QueueNode root_node = 2;
+
+    string name = 3;
+    string notes = 4;
+    cfhtapi.types.InstrumentType instrument = 5;
+    string observation_date = 6;
+}
+
+message ExposureNode {
+    repeated ExposureConfigurationData exposure_configuration = 1;
+}
+
+message IntermediateNode {
+    repeated QueueNode queue_node = 1;
+}
+
+// ObservationState is a progressive recursive state machine
+// Any node may only be in a state if all children are in the same state or progressed further.
+enum ObservationState {
+    CANDIDATE = 0;
+    ON_ROSTER = 1;
+    QUEUED = 2;
+    UNDER_OBSERVATION = 3;
+    OBSERVED = 4;
+}
+
+message QueueNode {
+    string display_label = 1;
+
+    ObservationState observation_state = 2;
+
+    oneof type {
+        ExposureNode exposure_node = 3;
+        IntermediateNode intermediate_node = 4;
+        bool error_loading = 5;
+    }
+}
+
+message ObservationAddress {
+    string queue_token = 1;
+
+    // First element maps to the observing block index stored in queue data
+    // The tree may have a group of observations to queue up, or it may
+    // specify all the way down to the exposure.
+    // node index should first try to look at the queue_node, if there is no
+    // object there, then we have reached the last element, and should grab
+    // the exposure configuration from the exposure node.
+    // If there are more elements specified, than the address, an exception should be thrown.
+    repeated int32 node_index = 2;
+}
+
+/**
+ * Each ExposureConfiguration corresponds to one atomic action for observing.
+ *
+ * Order of ExposureConfiguration can allow collapsing of common commands, and there
+ * may be difference in selecting a block of exposure configurations, and a single one,
+ * however, every single exposure configuration should be observable on its own.
+ */
+message ExposureConfigurationData {
+    /**
+     * Science Objects are directly attributed to a PI, and configured by the PI.
+     */
+    message ScienceObject {
+        int32 exposure_number = 1;
+        string active_runid = 2;
+        string observing_block_token = 3;
+        string observing_component_token = 4;
+        string pi_name = 5;
+        /** iso 8601 */
+        string release_date = 6;
+        /** iso 8601 */
+        string metadata_release_date = 7;
+    }
+
+    message Calibration {
+    }
+
+    string display_label = 1;
+    cfhtapi.observing.persistence.InstrumentConfiguration instrument_configuration = 2;
+    cfhtapi.observing.persistence.Constraint constraint = 3;
+    repeated cfhtapi.observing.persistence.TelescopePattern.Offset offset = 4;
+    cfhtapi.observing.persistence.TargetData target = 5;
+
+    // TODO: fix - don't wory about this for now
+    oneof attribution {
+        ScienceObject object = 7;
+        Calibration calibration = 8;
+    }
+
+    /** Unique identifier for the exposure, will become ExposureData.token */
+    string token = 9;
+
+    message EnumData {
+        /**
+         * 0 indexed.
+         *
+         * may be the same as exposure_number, but allows for other calibration images to be inserted
+         */
+        int32 enum_position = 1;
+
+        int32 enum_position_count = 2;
+    }
+
+    /** If set, go command should send enum=${enum_position}/${enum_position_count} */
+    EnumData enum_data = 10;
+
+    cfhtapi.types.ExposureType exposure_type = 11;
+}
+
+message QueueContextData {
+    string queue_coordinator_name = 1;
+    string remote_observer_name = 2;
+    string queue_runid = 3;
+    string queue_label = 4;
+    string queue_token = 5;
+    bool snr_enabled = 6;
+}
+
+// Roster
+message RosterData {
+    enum RosterState {
+        CANDIDATE = 0;
+        QUEUD = 1;
+        UNDER_OBSERVATION = 2;
+        OBSERVED = 3;
+    }
+
+    /** Uniquely identifies the roster withen an observing session. */
+    string token = 1;
+
+    RosterState state = 2;
+
+
+    ObservationAddress observation_address = 3;
+}
+
+message StateUpdate {
+    message ObservationUpdate {
+        ObservationState observation_state = 1;
+        /**
+         * Should be applied to this node and all children nodes
+         *
+         * Parents should then check to find the least progressed child, and set themselves to that state.
+         * The propegation can stop if the parent state does not change.
+         *
+         */
+        ObservationAddress observation_address = 2;
+    }
+
+    // Observation state can be determined from roster state, i.e. every time
+    // a roster update is made, it means all observations in the roster advanced as well.
+    // However, observation_update will always be populated to make client code eaisier to parse.
+    message RosterUpdate {
+        string roster_token = 1;
+
+        RosterData.RosterState roster_state = 2;
+    }
+
+    repeated ObservationUpdate observation_update = 1;
+
+    repeated RosterUpdate roster_update = 2;
+}
+
+// Observing Session
+
+message ObservingSessionData {
+    map<string, QueueData> queue = 1;
+
+    repeated RosterData roster = 2;
+}
+
+// Status Server Target Plot Data
+
+message StatusServerTargetPlotData {
+    double current_time_millis = 1;
+    double dome_azimuth = 2;
+    string dome_status = 3;
+    double telescope_azimuth = 4;
+    double telescope_altitude = 5;
+    string telescope_mode = 6;
+    double wind_direction = 7;
+    double wind_speed = 8;
+    double windscreen_warning_threshold = 9;
+    double windscreen_action_threshold = 10;
+    string instrument = 11;
+}

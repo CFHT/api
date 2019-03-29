@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package qso_api;
+option java_multiple_files = true;
+option java_outer_classname = "ValidationProto";
+option java_package = "edu.hawaii.cfht.protos.qso_api";
+
+
+enum Instrument {
+    Unknown = 0;
+    /* Sitelle */
+    S = 2;
+    /* WIRCam */
+    W = 3;
+    /* Megacam */
+    M = 4;
+    /* ESPaDOnS */
+    E = 5;
+    /* SPIRou */
+    U = 6;
+}
+
+// Cursory Validations
+// allow developers to assum well formed objects
+message FieldValidation {
+    string regex = 1;
+    bool required = 2;
+    /* If omitted field is assumed to applicable to all intsruments */
+    repeated Instrument instrument = 3;
+}
+
+extend google.protobuf.FieldOptions {
+    FieldValidation field_validation = 2001;
+}

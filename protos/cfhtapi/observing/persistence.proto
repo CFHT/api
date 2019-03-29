@@ -1,0 +1,1522 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.observing.persistence;
+option java_package = "edu.hawaii.cfht.protos.observing.persistence";
+option java_outer_classname = "PersistenceProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+import "cfhtapi/options.proto";
+import "cfhtapi/events.proto";
+import "cfhtapi/observing/persistence/subtotals.proto";
+
+enum State {
+    UNOBSERVED = 0;
+    /* For most algorithms, we treat observed and validated the same.  Observed just indicates that
+     * there is a possibility it could fail validation */
+    OBSERVED = 1; // this is the "endgo" status
+    PROCESSED = 2; // this is realtime coming in and doing something, still "OBSERVED"
+    GRADED = 3; // this is the RO doing something, still "OBSERVED"
+    VALIDATED = 4; // this is the QC validating
+    REJECTED = 5; // this is the QC rejecting
+}
+
+message ExposureTime {
+    double desired_snr = 1;
+    int64 exposure_time_ms = 2; // thinking we're going to milliseconds here
+}
+
+/* these should take care of the Megacam and Wircam ETC data entry fields, in combination with the existing messages */
+enum TargetSourceType {
+    UNKNOWN_TARGET_SOURCE = 0;
+    POINT_SOURCE = 1;
+    GALAXY = 2;
+    EXTENDED_SOURCE = 3;
+}
+
+enum Photometry {
+    UNKNOWN_PHOTOMETRY = 0;
+    APERTURE = 1;
+    PSF = 2;
+}
+
+enum ApertureType {
+    UNKNOWN_APERTURE = 0;
+    OPTIMAL_APERTURE = 1;
+    FIXED_APERTURE = 2;
+    FLUX_APERTURE_96_PERCENT = 3;
+}
+
+enum GalaxySersicIndex {
+    UNKNOWN_SERSIC = 0;
+    ONE = 1;
+    TWO = 2;
+    THREE = 3;
+    FOUR = 4;
+    FIVE = 5;
+}
+
+// NOTE for all EtcInput messages, most of the inputs are found in the other Observing definitions for each instrument
+message ImagerExposureTimeCalculator {
+    message ImagerEtcInput {
+        TargetSourceType source_type = 1;
+        Photometry photometry = 2;
+
+        message Aperture {
+            ApertureType aperture = 3;
+            double fixed_aperture = 4;
+        }
+
+        Aperture aperture = 5;
+
+        message GalaxySourceType {
+            GalaxySersicIndex galaxy_sersic_index = 1;
+            double half_light_radius = 2;
+        }
+
+        GalaxySourceType galaxySource = 6;
+    }
+
+    message ImagerEtcOutput {
+        ExposureTime exposureTimeOrSnr = 1;
+        double radius = 2;
+        double flux_fraction = 3;
+        double object_saturation = 4;
+        double sky_saturation = 5;
+        int64 date_calculated = 6;
+    }
+
+    ImagerEtcInput etc_input = 1;
+    ImagerEtcOutput etc_output = 2;
+}
+
+/* ESPaDOnS ETC data entry */
+/* etime/snr, wavelength, snr/pixel/bin/exp, magv, teff, airmass, seeing, observingmode, readoutmode */
+
+enum EspadonsEtcWavelengths {
+    UNKNOWN_WAVELENGTH = 0;
+    THREE_HUNDRED_SEVENTY_TWO = 372;
+    THREE_HUNDRED__SEVENTY_SEVEN = 377;
+    THREE_HUNDRED__EIGHTY_FOUR = 384;
+    THREE_HUNDRED__NINETY = 390;
+    THREE_HUNDRED__NINETY_SEVEN = 397;
+    FOUR_HUNDRED_FOUR = 404;
+    FOUR_HUNDRED_TWELVE = 412;
+    FOUR_HUNDRED_NINETEEN = 419;
+    FOUR_HUNDRED_TWENTY_SEVEN = 427;
+    FOUR_HUNDRED_THIRTY_FIVE = 435;
+    FOUR_HUNDRED_FOURTY_FOUR = 444;
+    FOUR_HUNDRED_FIFTY_THREE = 453;
+    FOUR_HUNDRED_SIXTY_TWO = 462;
+    FOUR_HUNDRED_SEVENTY_TWO = 472;
+    FOUR_HUNDRED_EIGHTY_TWO = 482;
+    FOUR_HUNDRED_NINETY_TWO = 492;
+    FIVE_HUNDRED_THREE = 503;
+    FIVE_HUNDRED_FIFTEEN = 515;
+    FIVE_HUNDRED_TWENTY_SEVEN = 527;
+    FIVE_HUNDRED_THIRTY_NINE = 539;
+    FIVE_HUNDRED_FIFTY_TWO = 552;
+    FIVE_HUNDRED_SIXTY_SIX = 566;
+    FIVE_HUNDRED_EIGHTY_ONE = 581;
+    FIVE_HUNDRED_NINETY_SIX = 596;
+    SIX_HUNDRED_TWELVE = 612;
+    SIX_HUNDRED_TWENTY_NINE = 629;
+    SIX_HUNDRED_FOURTY_SEVEN = 647;
+    SIX_HUNDRED_SIXTY_SIX = 666;
+    SIX_HUNDRED_EIGHTY_SIX = 686;
+    SEVEN_HUNDRED_EIGHT = 708;
+    SEVEN_HUNDRED_THIRTY = 730;
+    SEVEN_HUNDRED_FIFTY_FIVE = 755;
+    SEVEN_HUNDRED_EIGHTY_ONE = 781;
+    EIGHT_HUNDRED_NINE = 809;
+    EIGHT_HUNDRED_THIRTY_NINE = 839;
+    EIGHT_HUNDRED_SEVENTY_ONE = 871;
+    NINE_HUNDRED_SIX = 906;
+    NINE_HUNDRED_FORTY_THREE = 943;
+    NINE_HUNDRED_EIGHTY_FIVE = 985;
+    ONE_THOUSAND_TWENTY_NINE = 1029;
+}
+
+
+message EspadonsEtcOrderOutput {
+    int32 order = 1;
+    EspadonsEtcWavelengths wavelength = 2;
+
+    message EmittedPhotons {
+        double object = 1;
+        double sky = 2;
+    }
+
+    EmittedPhotons emitted_photons = 3;
+
+    message Transmission {
+        double atmospheric = 1;
+        double total = 2;
+    }
+
+    Transmission transmission = 4;
+
+    message CollectedPhotons {
+        double object = 1;
+        double sky = 2;
+    }
+
+    CollectedPhotons collected_photons = 5;
+
+    message Results {
+        double snr = 1;
+        double snr_per_frame_per_bin = 2;
+        double snr_per_frame_per_ccd_pixel_bin = 3;
+    }
+
+    Results results = 6;
+}
+
+message EspadonsExposureTimeCalculator {
+    message EspadonsEtcInput {
+        EspadonsEtcWavelengths wavelength = 1;
+    }
+
+    message EspadonsEtcOutput {
+        ExposureTime exposure_time_or_snr = 1;
+        int64 charged_time = 2; // ms
+        int64 saturation_time = 3; // ms
+        int64 polarimetric_mode_etime = 4; // ms, only for polar mode input
+        double pinhole_injection_efficiency = 5;
+        double readout_noise_per_spectal_bin = 6;
+        double sky_magv = 7;
+        double ccd_pixel_bin_size = 8;
+        double spectral_bin_size = 9;
+    }
+
+    EspadonsEtcInput etc_input = 1;
+    EspadonsEtcOutput etc_output = 2;
+
+
+}
+
+message SpirouExposureTimeCalculator {
+    message SpirouEtcOutput {
+        ExposureTime exposure_time_or_snr = 1;
+        int32 number_of_readouts = 2;
+        double effective_time = 3;
+
+        message SpirouColorIndices {
+            double y_j = 1;
+            double j_h = 2;
+            double h_k = 3;
+        }
+
+        message SpirouResultsPerMagnitude {
+            string name = 1;
+            double magnitude = 2;
+            double photons_per_object = 3;
+            double photons_per_sky = 4;
+            double snr = 5;
+        }
+
+        SpirouColorIndices spirou_color_indices = 4;
+        SpirouResultsPerMagnitude y_results = 5;
+        SpirouResultsPerMagnitude h_results = 6;
+        SpirouResultsPerMagnitude k_results = 7;
+    }
+}
+
+/* TODO: SPIROU ETC #2 */
+
+/* TODO: SITELLE ETC data entry */
+
+/* Stored in lookup table in column data */
+
+message PatternMessage {
+    bool is_staring = 1;
+    int32 nexp = 2;
+    bool is_nodding = 3;
+
+    repeated TelescopePattern.Offset pattern_offset = 4 [json_name = "pattern_offsets"];
+
+    string name = 5;
+    cfhtapi.types.ExposureType start_sequence = 6;
+
+    cfhtapi.types.BigInteger sybase_pat_id = 7 [(cfhtapi.options.storage) = SYBASE_HINT];
+    bool is_system = 8;
+}
+
+
+message Lookup {
+    /*
+        here start putting all the additional lookup data for each of the different lookup types
+        like ro_time, any overheads, offsets, instrument, lists, etc.
+    */
+    string instrument = 1;
+    bool is_user = 2;
+
+    int64 sybase_id = 3 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    message NothingMessage {
+        string nothing = 1;
+    }
+
+    message InstrumentMessage {
+        int32 mos_full_w = 1;
+        int32 mos_full_h = 2;
+        int32 chips_w = 3;
+        int32 chips_h = 4;
+        int32 chip_w = 5;
+        int32 chip_h = 6;
+        double pix_size = 7;
+        double pix_scale = 8;
+        double ro_time = 9;
+        int64 offset_overhead = 10;
+        int64 min_exptime = 11; // comes from valrule table for IC min exp time
+        int64 max_exptime = 12; // comes from valrule table for IC max exp time
+        string name = 13;
+    }
+
+    message FilterMessage {
+        int64 max_exposure_time = 1;
+        int32 aliasing = 2;
+        double wmin = 3;
+        double wmin_th = 4;
+        double wmax = 5;
+        double stepsize = 6;
+        string name = 7;
+    }
+
+    message BinningMessage {
+        int64 overhead = 1;
+        oneof binning_type {
+            InstrumentConfiguration.MegacamConfiguration.Binning megacam_binning = 2;
+            InstrumentConfiguration.SitelleConfiguration.Binning sitelle_binning = 3;
+        }
+    }
+
+    message IQMessage {
+        double lower_value = 1;
+        double upper_value = 2;
+        string unit = 3;
+        string name = 4;
+    }
+
+    message ReadoutModeMessage {
+        int64 readout_time = 1;
+        string name = 2;
+    }
+
+    message SkyBackgroundMessage {
+        double lower_value = 1;
+        double upper_value = 2;
+        string name = 3;
+    }
+
+    /* TODO: to discuss, what to do with system pointings versus user pointings, extend conversation to user patterns vs system patterns (and noddings) */
+    message PointingMessage {
+        bool is_staring = 1;
+        int32 pixel_x = 2;
+        int32 pixel_y = 3;
+        cfhtapi.types.OffsetCoordinate offset_coordinate = 4;
+        string name = 5;
+    }
+
+    message ObservingModeMessage {
+        int32 nexp = 1;
+        string breaker_cmd = 2;
+        string name = 3;
+    }
+
+    oneof LookupType {
+        NothingMessage nothing_message = 4;
+        InstrumentMessage instrument_message = 5;
+        PatternMessage pattern_message = 6;
+        BinningMessage binning_message = 7;
+        FilterMessage filter_message = 8;
+        IQMessage iq_message = 9;
+        ReadoutModeMessage readout_mode_message = 10;
+        SkyBackgroundMessage skybackground_message = 11;
+        PointingMessage pointing_message = 12;
+        ObservingModeMessage observingmode_message = 13;
+    }
+}
+
+message AllocationData {
+    string run_id = 1;
+    int64 time_allocated_millis = 2;
+    int32 tac_rank = 3;
+    string tac_grade = 4;
+}
+
+/* Stored in program_roots table in column program_data */
+message ProgramData {
+    enum ProgramType {
+        REGULAR = 0;
+        TARGET_OF_OPPORTUNITY = 1;
+        CALIBRATION = 2;
+        SNAPSHOT = 3;
+    }
+
+    message Comments {
+        string question = 1;
+        string comment = 2;
+    }
+
+    message ContactInfo {
+        // TODO: put the actual fields in here
+        string pi_first_name = 1;
+        string pi_last_name = 2;
+        string pi_email = 3;
+    }
+
+    string title = 1;
+    string abstract = 2;
+    ContactInfo contact_info = 3;
+    repeated Comments comment = 4;
+    string sybasePiUserId = 5 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    SubTotalsData sub_totals = 6 [json_name = "subTotals"];
+
+    string token = 7;
+
+    repeated AllocationData time_allocation = 8 [(cfhtapi.options.storage) = TRANSIENT];
+    int64 release_date_millis = 9;
+    int64 metadata_release_date_millis = 10;
+    string comment_field = 11;
+
+    ProgramType program_type = 12;
+}
+
+/* Stored in targets table in column target_data */
+
+message TargetData {
+    // Next ID: 20
+    string token = 1;
+
+    string name = 2;
+
+    oneof precession_calculation {
+        /* The equinox this targets fixtures.coordinates were found through referenced,
+        the fixtures.coordinates will be updated with precession at observation time. */
+        double reference_equinox_julian_years = 3;
+        /* When true, coordinates are used as is, and precession is not taken into consideration */
+        bool use_apparent_time = 12;
+    }
+
+    message PointingOffset {
+        string pointing_name = 1 [deprecated = true]; // Name isn't going to be valid because it's tied to instrument
+        cfhtapi.types.OffsetCoordinate pointing_offset_coordinate = 2;
+    }
+    PointingOffset pointing_offset = 4;
+
+    message Magnitude {
+        string magnitude_type = 1; // magab, magh, magv, etc.  TODO: further implementation as a LookupRecord?
+        double magnitude = 2;
+    }
+    Magnitude magnitude = 5 [deprecated = true];
+
+    message ProperMotion {
+        /* RA mas/yr */
+        double ra_mas = 1;
+        /* DEC mili arc seconds /year */
+        double dec_mas = 2;
+    }
+
+    double temperature_effective = 6; // [instrument = [E]] + spirou (any really)
+
+    /* Target at a fixed location.  Not currently implemented */
+    message FixedTarget {
+        /* Coordinate for this target */
+        cfhtapi.types.SkyCoordinate coordinate = 1;
+        ProperMotion proper_motion = 2;
+        cfhtapi.types.SkyCoordinate computed_coordinate = 3;
+    }
+
+    /* Target which moves along a path */
+    message MovingTarget {
+        /* the triplet of time,ra,dec */
+        message Ephemeris {
+            double mjd = 1;
+            cfhtapi.types.SkyCoordinate coordinate = 2;
+            cfhtapi.types.SkyCoordinate computed_coordinate = 3;
+        }
+        repeated Ephemeris ephemeris_point = 1 [json_name = "ephemeris_points"];
+    }
+
+    /* Only one subtype can be used, either a fixed target, or an ephemeris target */
+    oneof target_subtype {
+        FixedTarget fixed_target = 7;
+
+        MovingTarget moving_target = 8 [json_name = "moving_targets"];
+    }
+
+    message FindingChart {
+        string comment = 1;
+        string url = 2;
+        string token = 3;
+    }
+
+    repeated FindingChart finding_chart = 9;
+
+    /* Any fields here takes presidence over the exposure template */
+    ObservingTemplateData observing_template_mask = 10;
+
+    cfhtapi.types.BigInteger sybase_tar_id = 11 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    string sybase_tar_label = 14 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    message Magnitudes {
+        double U = 1;
+        double B = 2;
+        double V = 3;
+        double R = 4;
+        double I = 5;
+        double G = 6;
+        double J = 7;
+        double H = 8;
+        double K = 9;
+        double uu = 10;
+        double gg = 11;
+        double rr_ = 12;
+        double ii = 13;
+        double zz = 14;
+    }
+
+    Magnitudes magnitudes = 15;
+
+    double radial_velocity = 16;
+
+    string two_mass_id = 17;
+
+    int32 label = 18 [(cfhtapi.options.storage) = TRANSIENT];
+
+    bool standard_star = 19;
+}
+
+enum StokesParameter {
+    Q = 0;
+    U = 1;
+    V = 2;
+    W = 3;
+    I = 4;
+}
+
+/* Part of observing_template_data - not stored on any table individually */
+message InstrumentConfiguration {
+    message EspadonsConfiguration {
+        // Namespace here is because in c++ we can't have two enums that have the same name for a value
+        message O {
+            enum ObservingMode {
+                Polarimetry = 0;
+                Spectroscopy_star_only = 1;
+                Spectroscopy_star_sky = 2;
+            }
+        }
+        message R {
+            enum ReadoutMode {
+                Normal = 0;
+                Slow = 1;
+                Fast = 2;
+            }
+        }
+
+        O.ObservingMode observing_mode = 1;
+        R.ReadoutMode readout_mode = 2;
+        StokesParameter stokes_parameter = 3;
+        int32 number_of_sequences = 4;
+        int32 number_of_exposures = 5; // polarimetry gets 4, all others get 1
+
+        bool needs_snr = 6;
+        double snr_wave = 7;
+        double snr = 8;
+    }
+
+    message SpirouConfiguration {
+        message O {
+            enum ObservingMode {
+                Polarimetry = 0;
+                Star = 1;
+            }
+        }
+        message M {
+            enum Mode {
+                Dark = 0;
+                Fabry_Perot = 1;
+                Wave_Hc1 = 2;
+                Wave_Hc2 = 3;
+                FLAT = 4;
+            }
+        }
+
+        enum SkyObservation {
+            None = 0;
+            Before = 1;
+            After = 2;
+            BeforeAndAfter = 3;
+        }
+
+        // Deprecated fields
+        string template_name = 1 [deprecated = true];
+
+        O.ObservingMode observing_mode = 2;
+        StokesParameter stokes_parameter = 3;
+        M.Mode mode = 4;
+        SkyObservation sky_observation = 5;
+        //int32 number_of_readouts_per_exposure = 6;  //this is a derived field and doesn't need tobe here
+        /** Each sequence is 1 exposure for Star mode and 4 exposures for ObservingMode */
+        int32 number_of_sequences = 6;
+
+        /** when true - use SNR for stoping exposures */
+        bool use_snr = 7;
+    }
+
+    message MegacamConfiguration {
+        enum Filter {
+            Unknown = 0;
+            u = 1;
+            g = 2;
+            i = 3;
+            r = 4;
+            z = 5;
+            gri = 6;
+            CaHK = 7;
+            Ha = 8;
+            HaOFF = 9;
+            OIII = 10;
+            OIIIOFF = 11;
+            uS = 12;
+            gS = 13;
+            rS = 14;
+            iS = 15;
+            zS = 16;
+            N393S = 17;
+            HaS = 18;
+            HaOFFS = 19;
+            TiOS = 20;
+            CNS = 21;
+            OIIIS = 22;
+            PHGS = 23;
+
+        }
+
+        enum Binning {
+            one_one = 0;
+            two_two = 1;
+            three_three = 2;
+            four_four = 3;
+        }
+
+        Filter filter = 1;
+        Binning binning = 2;
+
+        // TODO: is this needed billy? Can we use presence of snr or not to decide?
+        // I THINK SO.  We have the capability to calculate SNR on every exposure, but we aren't necessarily doing SNR mode observations with everything
+        bool is_dynamic_exposure_time = 3;
+        int32 minimum_exposures = 4;
+        int64 min_exptime_ms = 5;
+        int64 max_exptime_ms = 6;
+        // TODO: interesting field here because associated with the target, but in the legacy mp snr mode, the mag is carried with the IC! so have to go back to this :(
+        double magAB = 7;
+    }
+
+    message WircamConfiguration {
+        enum Filter {
+            UNKNOWN = 0;
+            W = 1;
+            H = 2;
+            J = 3;
+            Ks = 4;
+            Y = 5;
+            H2 = 6;
+            KCont = 7;
+            CH4On = 8;
+            CH4Off = 9;
+            LowOH1 = 10;
+            LowOH2 = 11;
+            BrG = 12;
+            CO = 13;
+            COnar = 14;
+        }
+        Filter filter = 1;
+
+        bool is_microdithering = 2;
+        // Must always be > 0
+        int32 exposures_per_dp_position = 3; // [range 1-12];
+
+        bool accurate_pointing = 4;
+        double defocus = 5;
+        bool is_staring = 6;
+    }
+
+    message SitelleConfiguration {
+        enum Filter {
+            UNKNOWN = 0;
+            NONE = 1;
+            C1 = 2;
+            C2 = 3;
+            C3 = 4;
+            C4 = 5;
+            SN1 = 6;
+            SN2 = 7;
+            SN3 = 8;
+        }
+
+        enum Binning {
+            one_one = 0;
+            two_two = 1;
+            three_three = 2;
+        }
+
+        message Calibration {
+            enum CalibrationPosition {
+                no_calibration_position = 0;
+                zenith = 1;
+                target = 2;
+            }
+
+            CalibrationPosition calibration_position = 1;
+
+            enum CalibrationMode {
+                no_calibration_mode = 0;
+                laser = 1;
+                phase = 2;
+            }
+
+            CalibrationMode calibration_mode = 2;
+        }
+
+        enum ResolutionMode {
+            no_resolution_mode = 0;
+            hires = 1;
+            medres = 2;
+        }
+
+        Filter filter = 1;
+        Binning binning = 2;
+        int32 resolution = 3;
+        /* This should be on target too , sitell, espedons, spirou*/
+        double snrwavelength = 4;
+        Calibration calibration = 5;
+        ResolutionMode resolution_mode = 6;
+
+        bool needs_precision = 7;
+        bool needs_flux_calibration = 8;
+        bool needs_target_calibration = 9;
+    }
+
+    oneof configuration {
+        EspadonsConfiguration espadons_configuration = 2;
+        MegacamConfiguration megacam_configuration = 3;
+        WircamConfiguration wircam_configuration = 4;
+        SitelleConfiguration sitelle_configuration = 5;
+        SpirouConfiguration spirou_configuration = 6;
+    }
+
+    cfhtapi.types.BigInteger sybase_ic_id = 7 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    ExposureTime etime_or_snr = 8;
+
+    cfhtapi.types.BigInteger sybase_cons_id = 9 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    enum Tracking {
+        Unknown = 0;
+        SID = 1;
+        NONSID = 2;
+        SID_NOG = 3;
+        NONSID_G = 4;
+    }
+
+    Tracking tracking = 10;
+}
+
+/* Part of observing_template_data - not stored on any table individually */
+message Constraint {
+    cfhtapi.types.DoubleMinMax image_quality = 1;
+    double sky_background_max = 2;
+    double airmass_max = 3;
+    double extinction_max = 4;
+    double moon_distance_arc_length_min = 5;
+
+    bool photometric = 6; // TODO: this goes away because < ~0.1 extinction = photometric
+
+    string name = 7;
+
+    cfhtapi.types.BigInteger sybase_cons_id = 8 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    double h2o_vapor_max = 9;
+    string read_sky_background_name = 10;
+}
+
+/* Part of observing_template_data - not stored on any table individually */
+message TelescopePattern {
+    message Offset {
+        /** 0 indexed identifier, maps directly to this offset's position in TelescopeOffset.offsets */
+        // TODO: deprecate, no need to have duplicate information here.
+        int32 exposure_number = 1;
+        cfhtapi.types.OffsetCoordinate offset = 2;
+        /* For dithering patterns type is always target */
+        cfhtapi.types.ExposureType type = 3;
+    }
+
+    message Config {
+        string name = 1;
+        string description = 2;
+
+        /* Used for calculating cost for this pattern */
+        string charge_model = 3;
+
+        message Dithering {
+            bool is_staring = 1;
+        }
+
+        message Nodding {
+            cfhtapi.types.ExposureType start_sequence = 1;
+            double target_db = 2; /* TODO: I don't know what this is. */
+        }
+
+        oneof patterntype {
+            Dithering dithering = 4;
+            Nodding nodding = 5;
+        }
+
+        double scale = 6;
+        cfhtapi.types.BigInteger sybase_pat_id = 7 [(cfhtapi.options.storage) = SYBASE_HINT];
+        bool is_system = 8;
+    }
+
+    // Should only be set if manually specifying custom dithering patterns
+    repeated Offset offsets = 1;
+
+    Config config = 2;
+}
+/*
+// TODO: allow user to specify a SystemTelescopeOffset, or some model like this in config
+message SystemTelescopeOffset {
+    enum Megacam {
+        single = 1 [(TelescopeOffset) = {
+            offsets: [],
+            config: {    }
+        }]
+    };
+}
+*/
+/* Stored in observing_templates table in column observing_template_data */
+message ObservingTemplateData {
+    // Next available ID 16
+    InstrumentConfiguration instrument_configuration = 1;
+    Constraint constraint = 2;
+
+    TelescopePattern telescope_pattern = 3 [json_name = "telescope_offset"];
+
+    /* Used for calculating cost for this pattern
+    * Invokes code which reads the ExposureInstructions and
+    * attributes a cost to it.
+    */
+    string charge_model = 4;
+
+    /* don't know why these are strings but changing to int64 and they are in MILLISECONDS*/
+
+    /* ITME = etime + overhead */
+    // string itime_seconds = 5;
+
+    /* If SNR is being used, this is calculated for average conditions */
+    //string calculated_exposure_time_seconds = 6;
+
+    int64 itime = 5;
+
+    /* should be the ExposureTime message to handle the SNR calculation as well */
+    //int calculated_etime = 6;  /* from the ETC, can be different than the input etime */
+    ExposureTime calculate_etime = 6;
+
+    /* SNR or E-Time per exposure  => therefore we do not need the ExposureTime message in each IC? question above as well */
+    ExposureTime acquisition_time = 7;
+
+    /*
+     * This should be in the instrument config
+     *
+    enum Tracking {
+        Unknown = 0;
+        SID = 1;
+        NONSID = 2;
+        SID_NOG = 3;
+        NONSID_G = 4;
+    }
+    Tracking tracking = 9;
+    */
+
+    string token = 8;
+
+    /**
+     * When just creating an OT, this list is empty
+     * When this OT belongs to an OG, then any OBs in sybase that this OT is related too must be filled in.
+     * select * from blah where (select id from prg where prg
+     * Query to find related OBs is, select ob.* from ob, prg where ob.prg_id = prg.id and prg.runid=?     instrument_configuration.sybase_ic_id, constraint.sybase_cons_id
+
+     select ob.* from ob, prg, icseq where ob.prg_id = prg.id
+       and prg.runid=<runid>
+       and icseq.ob_id=ob.id and ob.con_id = <constraint.sybase_cons_id>
+       and icseq.ic_id = <instrument_configuration.sybase_ic_id>;
+     */
+    repeated cfhtapi.types.BigInteger associated_observing_blocks = 9 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    string name = 10;
+
+    /**
+     * Number of exposures needed for validation,
+     * Calculated by the ExposureConfigurationService
+     *
+     * this is a derived field and should not be set
+     */
+
+    int32 total_exposure_count = 11; // [derived = true];
+
+    int32 label = 12 [(cfhtapi.options.storage) = TRANSIENT];
+}
+
+/* Stored in observing_blocks table in column observing_block_data */
+message ObservingBlockData {
+    string token = 1;
+    double max_iq_tolerance_percentage = 2; // float between 0 and 1
+
+    cfhtapi.types.BigInteger sybase_ob_id = 3 [(cfhtapi.options.storage) = SYBASE_HINT];
+
+    SubTotalsData subTotals = 4;
+}
+
+
+message ExposureData {
+    message SitelleStatus {
+        message Camera {
+            double iq = 1;
+            double iq_rms = 2;
+            double pixel_shift_x = 3;
+            double pixel_shift_y = 4;
+            int32 number_of_stars = 5;
+            double me = 6;
+        }
+
+        Camera camera_a = 1;
+        Camera camera_b = 2;
+
+        double relative_extinction = 3;
+        double relative_extinction_rms = 4;
+
+        string actual_filter = 5;
+    }
+
+    message WircamStatus {
+        double iq_uncertainty = 1;
+        double absorption = 2;
+        double absorption_uncertainty = 3;
+        int32 number_of_stars_iq = 4;
+        int32 number_of_stars_absorption = 5;
+        double absolute_sky_level = 6;
+        double elongation = 7;
+        int32 mdcoords = 8;
+        int32 mdrepeat = 9;
+        string actual_filter = 10;
+        double iq = 11;
+    }
+
+    message MegacamStatus {
+        double iq = 1;
+        double skybg = 2;
+        int32 elixir_eval = 3;
+        string elixir_seval = 4;
+
+        double snr = 5;
+        double atmospheric_transmission = 6;
+        double elixir_zeropoint = 7;
+
+        string actual_filter = 8;
+    }
+
+    message EspadonsStatus {
+        string instr_mode = 1;
+        double actual_wavelength = 2;
+        double snr_exp_meter = 3;
+        double snr_wave_meas_int = 4;
+        double snr_wave_meas_pol = 5;
+        double snr_meas_int_per_ccd_bin = 6;
+        double snr_meas_int_per_spec_bin = 7;
+        double snr_meas_polar_ccd_bin = 8;
+        double snr_meas_polar_spec_bin = 9;
+    }
+
+    message SpirouStatus {
+        double acqtime = 1;
+        string acqtime1 = 2;
+        string asic_num = 3;
+        string sca_id = 4;
+        int32 muxtype = 5;
+        int32 noutputs = 6;
+        int32 nadcs = 7;
+        int32 pddector = 8;
+        int32 clkoff = 9;
+        int32 warmtst = 10;
+        int32 clocking = 11;
+        int32 glbreset = 12;
+        int32 frmode = 13;
+        int32 camlink = 14;
+        int32 expmode = 15;
+        int32 nresets = 16;
+        double frmtime = 17;
+        double exptime = 18;
+        int32 acqtype = 19;
+        int32 datamode = 20;
+        int32 datlevel = 21;
+        int32 asicgain = 22;
+        int32 nomgain = 23;
+        int32 ampreset = 24;
+        int32 ktcremov = 25;
+        int32 srccur = 26;
+        int32 ampinput = 27;
+        string v4v3v2v1 = 28;
+        string units = 29;
+        string tstation = 30;
+        string hxrgver = 31;
+        double mclk = 32;
+        double inttime = 33;
+        int32 frameno = 34;
+
+        string sb_adc_s = 35;
+        double sbadc1_p = 36;
+        double sbadc2_p = 37;
+        string sbcali_p = 38;
+        double sbdens_p = 39;
+        string sbrhb1_p = 40;
+        string sbrhb2_p = 41;
+        string sbetem_p = 42;
+        double sb_inj_t = 43;
+        double sb_pol_t = 44;
+        double sb_cs1_t = 45;
+        double sb_cs2_t = 46;
+        double sb_cb1_t = 47;
+        double sb_cb2_t = 48;
+        string sbiavl1s = 49;
+        string sbiavl2s = 50;
+        string sbetel_s = 51;
+        string sb_csc_s = 52;
+        string sbcref_p = 53;
+        string sbccas_p = 54;
+        double sbcden_p = 55;
+        string sbagit_s = 56;
+        string sbcmir_p = 57;
+        string sbclhc1s = 58;
+        string sbclhc1w = 59;
+        double sbclhc1c = 60;
+        string sbclhc2s = 61;
+        string sbclhc2w = 62;
+        double sbclhc2c = 63;
+        string sbclwl_s = 64;
+        double sbclwl_c = 65;
+        string sbwlsh_s = 66;
+        string sbctec_s = 67;
+        double sbctecct = 68;
+        double sbctecht = 69;
+        double sbccprit = 70;
+        double sbcccu_t = 71;
+        double sbccprot = 72;
+        double sbcfbi_t = 73;
+        double sbcwls_t = 74;
+        double sbclsuat = 75;
+        double sbcfpi_t = 76;
+        double sbcfpe_t = 77;
+        double sbcfpb_p = 78;
+        double sbvga_cp = 79;
+        double sbvga_ip = 80;
+        double sbvgb_cp = 81;
+        double sbvgb_ip = 82;
+        double sbmk00_t = 83;
+        double sbmk01_t = 84;
+        double sbmk02_t = 85;
+        double sbmk03_t = 86;
+        double sbmk04_t = 87;
+        double sbmk05_t = 88;
+        double sbmk06_t = 89;
+        double sbmk07_t = 90;
+        double sbls000t = 91;
+        double sbls001t = 92;
+        double sbls002t = 93;
+        double sbls003t = 94;
+        double sbls004t = 95;
+        double sbls005t = 96;
+        double sbls006t = 97;
+        double sbls007t = 98;
+        double sbls008t = 99;
+        double sbls009t = 100;
+        double sbls010t = 101;
+        double sbls011t = 102;
+        double sbls100t = 103;
+        double sbls101t = 104;
+        double sbls102t = 105;
+        double sbls103t = 106;
+        double sbls104t = 107;
+        double sbls105t = 108;
+        double sbls106t = 109;
+        double sbls107t = 110;
+        double sbls108t = 111;
+        double sbls109t = 112;
+        double sbls110t = 113;
+        double sbls111t = 114;
+        double sbl00i_t = 115;
+        double sbl00h_v = 116;
+        double sbl01i_t = 117;
+        double sbl01h_v = 118;
+        double sbl02i_t = 119;
+        double sbl02h_v = 120;
+        double sbl03i_t = 121;
+        double sbl03h_v = 122;
+        double sbl04i_t = 123;
+        double sbl04h_v = 124;
+        double sbl05i_t = 125;
+        double sbl05h_v = 126;
+        double sbl06i_t = 127;
+        double sbl06h_v = 128;
+        double sbl07i_t = 129;
+        double sbl07h_v = 130;
+        double sbl08i_t = 131;
+        double sbl08h_v = 132;
+        double sbl09i_t = 133;
+        double sbl09h_v = 134;
+        double sbl10i_t = 135;
+        double sbl10h_v = 136;
+        double sbl11i_t = 137;
+        double sbl11h_v = 138;
+        double sbl12i_t = 139;
+        double sbl12h_v = 140;
+        double sbl13i_t = 141;
+        double sbl13h_v = 142;
+        double seadc1_p = 143;
+        double seadc2_p = 144;
+        int32 sedens_p_deprecated = 145 [deprecated = true, json_name = "sedens_p"];
+        double sedens_p = 234 [json_name = "sedens_p_float"];
+        double se_inj_t = 146;
+        double se_pol_t = 147;
+        double se_cs1_t = 148;
+        double se_cs2_t = 149;
+        double se_cb1_t = 150;
+        double se_cb2_t = 151;
+        double sectecct = 152;
+        double sectecht = 153;
+        double seccprit = 154;
+        double secccu_t = 155;
+        double seccprot = 156;
+        double secfbi_t = 157;
+        double secwls_t = 158;
+        double seclhc1c = 159;
+        double seclhc2c = 160;
+        double seclwl_c = 161;
+        double seclsuat = 162;
+        double secfpi_t = 163;
+        double secfpe_t = 164;
+        double secfpb_p = 165;
+        double sevga_cp = 166;
+        double sevga_ip = 167;
+        double sevgb_cp = 168;
+        double sevgb_ip = 169;
+        double semk00_t = 170;
+        double semk01_t = 171;
+        double semk02_t = 172;
+        double semk03_t = 173;
+        double semk04_t = 174;
+        double semk05_t = 175;
+        double semk06_t = 176;
+        double semk07_t = 177;
+        double sels000t = 178;
+        double sels001t = 179;
+        double sels002t = 180;
+        double sels003t = 181;
+        double sels004t = 182;
+        double sels005t = 183;
+        double sels006t = 184;
+        double sels007t = 185;
+        double sels008t = 186;
+        double sels009t = 187;
+        double sels010t = 188;
+        double sels011t = 189;
+        double sels100t = 190;
+        double sels101t = 191;
+        double sels102t = 192;
+        double sels103t = 193;
+        double sels104t = 194;
+        double sels105t = 195;
+        double sels106t = 196;
+        double sels107t = 197;
+        double sels108t = 198;
+        double sels109t = 199;
+        double sels110t = 200;
+        double sels111t = 201;
+        double sel00i_t = 202;
+        double sel00h_v = 203;
+        double sel01i_t = 204;
+        double sel01h_v = 205;
+        double sel02i_t = 206;
+        double sel02h_v = 207;
+        double sel03i_t = 208;
+        double sel03h_v = 209;
+        double sel04i_t = 210;
+        double sel04h_v = 211;
+        double sel05i_t = 212;
+        double sel05h_v = 213;
+        double sel06i_t = 214;
+        double sel06h_v = 215;
+        double sel07i_t = 216;
+        double sel07h_v = 217;
+        double sel08i_t = 218;
+        double sel08h_v = 219;
+        double sel09i_t = 220;
+        double sel09h_v = 221;
+        double sel10i_t = 222;
+        double sel10h_v = 223;
+        double sel11i_t = 224;
+        double sel11h_v = 225;
+        double sel12i_t = 226;
+        double sel12h_v = 227;
+        double sel13i_t = 228;
+        double sel13h_v = 229;
+
+        // from processing, the expected data in the log book are
+        message GuiderProcessingResult {
+            double etime = 1;
+            string isustate = 2;
+            double sbdens_p = 3;
+            double hole_position_offset_x = 4;
+            double hole_position_offset_y = 5;
+            double star_to_null_position_offset_x = 6;
+            double star_to_null_position_offset_y = 7;
+            double magnitude_estimate = 8;
+            double seeing_estimate = 9;
+
+            /* per  160676372 */
+            string sgisust = 10;
+            string sggdst = 11;
+            double sgfrmrt = 12;
+            double sgetime = 13;
+            double sgnullx = 14;
+            double sgnully = 15;
+            double sgwinx0 = 16;
+            double sgwiny0 = 17;
+            double sgwinx1 = 18;
+            double sgwiny1 = 19;
+            double sgoffx0 = 20;
+            double sgoffy0 = 21;
+            double sgoffx1 = 22;
+            double sgoffy1 = 23;
+            double sgholex = 24;
+            double sgholey = 25;
+            double sgcholex = 26;
+            double sgcholey = 27;
+            double sgeholex = 28;
+            double sgeholey = 29;
+            double sgcstarx = 30;
+            double sgcstary = 31;
+            double sgestarx = 32;
+            double sgestary = 33;
+            double sgcnoffx = 34;
+            double sgcnoffy = 35;
+            double sgcsee = 36;
+            double sgesee = 37;
+            double sgcmagn = 38;
+            double sgemagn = 39;
+            double sgssee = 40;
+            string trg_type = 41;
+        }
+
+        message ExposureMeterProcessingResult {
+            double flux = 1 [deprecated = true];
+            double snr = 2 [deprecated = true];
+            double mid_exposure_date_millis = 3 [deprecated = true];
+            /** Calculated SNR */
+            double spemsnr = 4;
+        }
+
+        message PipelineProcessingResult {
+            double snr10 = 1;
+            double snr34 = 2;
+            double snr44 = 3;
+            string dprtype = 4;
+            double ccfmask = 5 [deprecated = true];
+            double ccfmacpp = 6;
+            double ccfrv = 7;
+            double ccfcontr = 8;
+            double ccfrvc = 9;
+            double ccffwhm = 10;
+            string ccfmask_str = 11;
+        }
+
+        GuiderProcessingResult guider_processing = 230;
+        ExposureMeterProcessingResult exposure_meter_processing = 231;
+        PipelineProcessingResult pipeline_processing = 232;
+    }
+
+    message ExposureStatus {
+        oneof status {
+            MegacamStatus megacam_status = 1;
+            WircamStatus wircam_status = 2;
+            EspadonsStatus espadons_status = 3;
+            SitelleStatus sitelle_status = 4;
+            SpirouStatus spirou_status = 5;
+        }
+
+        ExposureTime exposure_time = 6;
+
+        double exp_date_mjd = 7;
+
+        string queue_name = 8;
+        string exp_type = 9;
+        State exp_status = 10;
+        bool is_photometric = 11;
+        string obs_comment = 12;
+        string seq_comment = 13;
+
+        // TODO: come up with word which means it was read from instruments, measured, observed, reported, etc.
+        cfhtapi.types.SkyCoordinate actual_pointing = 14;
+        double actual_sky = 15;
+        double actual_airmass = 16;
+        double actual_moondist = 17;
+
+        string observer_comment = 18;
+        string qc_comment = 19;
+
+        message File {
+            // Absolute path to directory file is homed in. Starts with / and ends with /.
+            string absolute_path = 1;
+            // Name of file without extension
+            string base_name = 2;
+            // Name of extenion including .
+            string ext = 3;
+        }
+        // To read a file, simply absolute_path + base_name + ext.
+        File file = 20;
+
+        string credited_qcoordinator = 21;
+        string credited_observer = 22; //[(cfhtapi.options.source) = {table: "xexp", field: "_qobserve"}];
+
+        int32 grade = 23;
+
+        string read_obs_date_utc = 24;
+        string read_obs_date_hst = 25;
+        string read_actual_sky_name = 26;
+    }
+
+    string token = 1;
+
+    string obsid = 2;
+
+    /**
+     * Maps to the position of the ExposureData.observing_template.telescope_offset.offsets.[].exposure_number
+     * exposure_number is guaranteed to be the position in the ExposureData.observing_template.telescope_offset.offsets
+     */
+
+    int32 exposure_number = 3;
+
+    /** 0 indexed, increments here represent observing the exact same observing configuration, i.e.
+     * target, observing template, observing component, telescope offset position.
+     *
+     * This can happen for a variety of reasons. RO decides to do an observation again, original observation failed
+     * validation, an additional exposure to reach SNR goals, clouds roll in during observing, etc.
+     */
+
+    int32 iteration = 4; // TODO: rename to repeat (no more iterations)
+    string parent_exposure_token = 5;
+    ExposureStatus exposure_status = 6;
+    ObservingTemplateData observing_template = 7;
+    TargetData target = 8;
+
+    string queue_run_id = 9;
+    string camera_run_id = 10;
+    string prg_run_id = 11;
+    string observing_component_token = 12;
+    // exp_type is up above
+    //cfhtapi.types.ExposureType exposure_type = 13;
+    reserved 13;
+
+    SubTotalsData sub_totals = 14 [json_name = "subTotals"];
+
+    message Attribution {
+        string runid = 1;
+        /**
+         * String because OB labels take the form of OG-1, OG-2 etc.
+         */
+        string observing_block_label = 2;
+        /**
+         * Token of the observing block this exposure is attributed to.
+         */
+        string observing_block_token = 3;
+        /**
+         * Label of the observing group this exposure is attributed to.
+         */
+        int32 observing_group_label = 4;
+        /**
+         * Token of the observing group this exposure is attributed to.
+         */
+        string observing_group_token = 5;
+
+        /**
+         * Token of the observing component this exposure is attributed to.
+         */
+        string observing_component_token = 6;
+
+        /**
+         * exposure number this exposure is attributed to.
+         */
+        int32 exposure_number = 7;
+
+        /**
+          * the instrument run / queue this exposure was taken under
+          */
+        string instrument_run = 8;
+
+        /**
+          * the agency id
+          */
+        string attributing_agency = 9;
+    }
+
+    Attribution attribution = 15 [(cfhtapi.options.storage) = TRANSIENT];
+
+}
+
+enum WeatherLogSkyBackground {
+    UNDEFINED_SKY_BACKGROUND = 0;
+    DARK = 1;
+    GREY = 2;
+    BRIGHT = 3;
+}
+
+enum WeatherLogSkyConditions {
+    UNDEFINED_SKY_CONDITIONS = 0;
+    PHOTOMETRIC = 1;
+    THIN_CIRRUS = 2;
+    CIRRUS = 3;
+    PARTLY_CLOUDY = 4;
+    OVERCAST = 5;
+    FOGGY = 6;
+    RAINING = 7;
+    SNOWING = 8;
+    HIGH_HUMIDITY = 9;
+}
+
+message ClockLogData {
+    string token = 1;
+    string comment = 2;
+    cfhtapi.types.InstrumentType instrument = 3;
+    int64 start_time_millis = 4;
+    int64 stop_time_millis = 5;
+    cfhtapi.events.ClockEventType clock_event_type = 6;
+}
+
+message EventData {
+    string token = 1;
+
+    oneof type {
+        ExposureData exposure = 2;
+        WeatherLogData weather_log = 3;
+        ObserverLogData observer_log = 4;
+        ClockLogData clock_log = 5;
+    }
+}
+
+message WeatherLogData {
+    string token = 1;
+    // these are provided by a system, doing an insert
+    int64 date_recorded_millis = 2;
+    double air_temperature = 3;
+    double air_pressure = 4;
+    double wind_speed = 5;
+    double wind_dir = 6;
+    double relative_humidity = 7;
+
+    // external sources, JCMT TAU meters.
+    double h2o_percent = 8; // maybe a calc'd field (see Claire)
+    double tau0 = 9;
+    double tau1 = 10;
+
+    // these are provided by the ro, doing an update
+    string comment = 11;
+    WeatherLogSkyBackground sky_background = 12;
+    bool photometric = 13;
+    double iq0 = 14; // hand measured, system calc, etc.
+    string iq0_source = 15;
+    double iq1 = 16; // hand measured, system calc, etc.
+    string iq1_source = 17;
+    WeatherLogSkyConditions sky_conditions = 18;
+
+    // this should come from skyprobe
+    double extinction = 19;
+
+}
+
+enum ObserverLogCategory {
+    OTHER = 0;
+    QSO = 1;
+    NEO_OAP = 2;
+    TCS = 3;
+    WEATHER = 4;
+    CFH12K = 5;
+    DOME = 6;
+    TELESCOPE = 7;
+    ENGINEERING = 8;
+    HUMAN_ERROR = 9;
+    COMMENT = 10;
+    POINTING = 11;
+    FOCUSING = 12;
+    MEGACAM = 13;
+    WIRCAM = 14;
+    ESPADONS = 15;
+    SITELLE = 16;
+    START_OF_RUN_SETUP = 17;
+    COMPUTERS_NETWORK = 18;
+    POWER_GLITCH_WAIMEA = 19;
+    POWER_GLITCH_SUMMIT = 20;
+    SPIROU = 21;
+    VOLCANO = 22;
+    EARTHQUAKE = 23;
+}
+
+message ObserverLogData {
+    string token = 1;
+    int64 date_begin_millis = 2;
+    int64 date_end_millis = 3;
+    string comment = 4;
+
+    ObserverLogCategory category = 5;
+}
+
+enum SpirouCalibrationsStatus {
+    UNKNOWN = 0;
+    ACQUIRING = 1;
+    PROCESSING = 2;
+    COMPLETE = 3;
+    FAILED = 4;
+}
+
+message SpirouConfig {
+    string run_at_time_ISO8601_string = 1;
+    bool auto_run = 2;
+}
+
+message SpirouCalibrationStatus {
+    int64 last_run_at_millis = 1;
+    int64 last_completed_at_millis = 2;
+    int64 next_scheduled_at_millis = 3;
+    SpirouCalibrationsStatus last_status = 4;
+}
+
+/**
+ * For storing system state which changes fairly often, or through automated process.
+ */
+
+message MetadataData {
+    message InstrumentRunSyncerHistory {
+        int64 last_sychronized_at_millis = 1;
+        string hash = 2;
+    }
+
+    oneof data_type {
+        InstrumentRunSyncerHistory instrument_run_syncer_history = 1;
+        SpirouConfig spirou_config = 2;
+        SpirouCalibrationStatus spirou_calibration_status = 3;
+    }
+}

@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.cds;
+option java_package = "edu.hawaii.cfht.protos.cds";
+option java_outer_classname = "CdsProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+import "cfhtapi/observing/persistence.proto";
+
+message SesameResponse {
+    message TargetData {
+        message Resolver {
+            message Pm {
+                double v = 1;
+                double e = 2;
+                string q = 3;
+                string r = 4;
+                double pa = 5;
+                double pmRA = 6;
+                double epmRA = 7;
+                double pmDE = 8;
+                double epmDE = 9;
+            }
+
+            message Vel {
+                double v = 1;
+                double e = 2;
+                string q = 3;
+                string r = 4;
+            }
+
+            string name = 1;
+            string INFO = 2;
+            int64 oid = 3;
+            string oname = 4;
+            string otype = 5;
+            string jpos = 6;
+            double jradeg = 7;
+            double jdedeg = 8;
+            string refPos = 9;
+            int64 errRAmas = 10;
+            int64 errDEmas = 11;
+
+            Pm pm = 12 [json_name="Pm"];
+            Vel vel = 13 [json_name="Vel"];
+        }
+
+        string name = 1;
+        Resolver resolver = 2 [json_name="Resolver"];
+    }
+
+    TargetData Target = 1;
+}
+
+message SimbadResponse {
+    message Object {
+        double distance = 1;
+        string name = 2;
+        string type = 3;
+        double ra = 4;
+        double dec = 5;
+        double proper_motion_ra = 6;
+        double proper_motion_dec = 7;
+
+        cfhtapi.observing.persistence.TargetData.Magnitudes magnitudes = 10;
+
+        string sp_type = 9;
+
+    }
+    /** Order is from closest to furthest */
+    repeated Object objects = 1;
+}
+
+message CFHTReservedTargetResponse {
+    string name = 1;
+    double ra = 2;
+    double dec = 3;
+}

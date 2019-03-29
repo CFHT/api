@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package cfht.authorization;
+
+option java_package = "edu.hawaii.cfht.protos.authorization";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfht/authorization/authorization_data.proto";
+import "google/api/annotations.proto";
+
+message Errors {
+  repeated string messages = 1 [json_name = "messages"];
+}
+
+message BearerToken {
+  /* Prefix */
+  string bearer_token_prefix = 1;
+
+  repeated cfht.authorization.data.GrantData.Grant grants = 2 [json_name = "grants"];
+
+  string comment = 3;
+}
+
+message ListBearerTokenRequest {
+}
+
+message ListBearerTokenResponse {
+  bool success = 1;
+
+  Errors error = 2;
+
+  repeated BearerToken bearer_tokens = 3 [json_name = "bearer_tokens"];
+}
+
+message CreateBearerTokenRequest {
+  /* Used for idempotence */
+  string request_id = 1;
+
+  //TODO: move below two options into oneof{}
+  repeated cfht.authorization.data.GrantData.Grant grant = 2;
+  bool as_current_user = 3;
+
+  string comment = 4;
+}
+
+message CreateBearerTokenResponse {
+  bool success = 1;
+
+  string bearer_token_full = 2;
+
+  BearerToken bearer_token = 3;
+}
+
+/* All endpoints require an Admin permission */
+service BearerTokenService {
+  rpc ListBearerTokens (ListBearerTokenRequest) returns (ListBearerTokenResponse) {
+    option (google.api.http) = {
+            get: "/bearer-tokens" // TODO: (/{page.after_cursor=page/*}(/{page.number_of_records=limit/*})"
+        };
+  }
+
+  rpc CreateBearerToken (CreateBearerTokenRequest) returns (CreateBearerTokenResponse) {
+    option (google.api.http) = {
+            post: "/bearer-tokens"
+            body: "*"
+        };
+  }
+}
+
+message CreateSessionRequest {
+  /* for idempotence */
+  string request_id = 1;
+  /* Ldap username to login */
+  string ldap_username = 2;
+
+  /* Password for this user */
+  string password = 3;
+
+  /*
+   * Set to true if requesting admin priviliges.
+   *
+   * These sessions are shorter lived and should only
+   * be used when admin tasks will be performed
+   *
+   * This request will fail authentication if this user is not able
+   * to take administrative actions.
+   */
+  bool request_admin_privileges = 4;
+}
+
+/* commenting on unested message */
+message CreateSessionResponse {
+  bool success = 1;
+  Errors error = 2;
+  /* Session to be returned in the future */
+  string session_id = 3 [json_name = "session_id"];
+
+}
+
+message DestroySessionRequest {
+}
+
+message DestroySessionResponse {
+  bool success = 1;
+  Errors error = 2;
+}
+
+message ListGrantsRequest {
+}
+
+message ListGrantsResponse {
+  cfht.authorization.data.GrantData grant_data = 1;
+}
+
+service SessionService {
+  /**
+   * Provide a valid credential and receive a session which will
+   * be used for access to authenticated APIs
+   */
+  rpc CreateSession (CreateSessionRequest) returns (CreateSessionResponse) {
+    option (google.api.http) = {
+        post: "/session"
+        body: "*"
+    };
+  }
+
+  /**
+   * Logout a user or destroy a one time token
+   */
+  rpc DestroySession (DestroySessionRequest) returns (DestroySessionResponse) {
+    option (google.api.http) = {
+        delete: "/session"
+    };
+  }
+
+  rpc ListGrants (ListGrantsRequest) returns (ListGrantsResponse) {
+    option (google.api.http) = {
+        get: "/session"
+    };
+  }
+}
+
+message EmptyMessage {
+}
+
+service Ping {
+  rpc Ping (EmptyMessage) returns (EmptyMessage) {
+    option (google.api.http) = {
+        post: "/ping"
+    };
+  }
+}

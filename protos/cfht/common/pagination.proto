@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package cfht.common.pagination;
+
+option java_package = "edu.hawaii.cfht.protos.common.pagination";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+/* Used to request a specific page of an entity */
+message Page {
+    oneof cursor {
+        /* Records after this cursor */
+        string before_cursor = 1;
+        /* Records before this cursor */
+        string after_cursor = 2;
+    }
+    /* The maximum is set by the entity, see the entity documentation
+     * If omitted, the resource default is used.
+     */
+    int32 number_of_records = 3;
+}
+
+message Navigation {
+    string previous_cursor = 1;
+
+    string next_cursor = 2;
+}

@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package cfhtapi.spirou;
+
+import "google/protobuf/wrappers.proto";
+
+message TargetLocation {
+    message FixedLocation {
+        message Coordinate {
+            double ra = 1;
+            double dec = 2;
+        }
+
+        message ProperMotion {
+            /* RA mili ar seconds / year */
+            double ra = 1;
+            /* DEC mili arc seconds / year */
+            double dec = 2;
+        }
+
+        Coordinate coordinate = 1;
+        ProperMotion proper_motion = 2;
+    }
+
+    oneof location {
+        bool resolve = 1;
+        FixedLocation fixed = 2;
+        // this isn't legit... but you can't specify ephemeris in flat file.. so now what?
+        bool ephemeris = 3;
+    }
+}
+
+message TargetProperties {
+    google.protobuf.DoubleValue mag_h = 1;
+    double teff = 2;
+}
+
+message Constraints {
+    enum H2OVapor {
+        DRY = 0;
+        MEDIAN = 1;
+        ANY = 2;
+    }
+
+    double seeing_max = 1;
+    H2OVapor h2o_vapor = 2;
+    double extinction_max = 3;
+    double moon_distance_arclength_min = 4;
+}
+
+message InstrumentConfiguration {
+    enum Mode {
+        POLARIMETRY = 0;
+        STAR_SKY = 1;
+        STAR_ONLY = 3;
+    }
+    enum Reference {
+        DARK = 0;
+        FP = 1;
+        HC1 = 2;
+        HC2 = 3;
+    }
+    enum Stokes {
+        UNSET = 0;
+        I = 1;
+        U = 2;
+        V = 3;
+        Q = 4;
+    }
+
+    Mode mode = 1;
+    int32 number_of_readouts = 2;
+    int32 number_of_sequences = 3;
+    bool sky = 4;
+    double snr = 5;
+    Reference reference = 6;
+    int32 etime_ms = 7;
+    Stokes stokes = 8;
+    bool use_snr = 9;
+}
+
+message Duration {
+    enum Unit {
+        DAYS = 0;
+        HOURS = 1;
+    }
+
+    double value = 1;
+    Unit unit = 2;
+}
+
+message Program {
+    enum Priority {
+        MEDIUM = 0;
+        HIGH = 1;
+        LOW = 2;
+    }
+
+    message Interval {
+        Duration requested = 1;
+        Duration tolerance_before = 2;
+        Duration tolerance_after = 3;
+    }
+
+    message Relative {
+        int32 requisite_observation = 1;
+        Interval wait_period = 2;
+    }
+
+    message Monitor {
+        Interval interval = 1;
+    }
+
+    message Period {
+        Duration period = 3;
+        Interval interval = 4;
+    }
+
+    int32 iteration_count = 1;
+    int32 iteration_count_min = 2;
+
+    oneof type {
+        Relative relative = 3;
+        Monitor monitor = 4;
+        Period periodic = 5;
+    }
+
+
+    Priority priority = 6;
+}
+
+message Observation {
+    string name = 1;
+
+    string id = 2;
+
+    TargetLocation target_location = 3;
+
+    TargetProperties target_properties = 4;
+
+    Constraints constraints = 5;
+
+    InstrumentConfiguration instrument_configuration = 6;
+
+    Program program = 7;
+}
+
+message Description {
+    repeated Observation observations = 1;
+}

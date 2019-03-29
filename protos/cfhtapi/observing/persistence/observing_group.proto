@@ -1,0 +1,310 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.observing.persistence;
+option java_package = "edu.hawaii.cfht.protos.observing.persistence";
+option java_outer_classname = "ObservingGroupProtos";
+option java_generic_services = true;
+
+import "cfhtapi/types.proto";
+import "cfhtapi/options.proto";
+import "cfhtapi/observing/persistence/subtotals.proto";
+
+
+enum ObservingGroupPriority {
+    UNKNOWN_OG_PRIORITY = 0;
+    HIGH = 1;
+    MEDIUM = 2;
+    LOW = 3;
+    /** Don't Observe */
+    INACTIVE = 4;
+}
+
+// If we need to add an observing group reels
+// Then the calculator won't have to change much.
+// The dependency calculator can throw a "data not ready"
+// if it sees it has any requisite ogs which haven't had the
+// schedule feature completed.
+message ObservingGroupData {
+    message ObservingBlock {
+        message ObservingComponent {
+            /** For a rest API this should be a link to expose through HATEOS */
+            string target_token = 1;
+
+            int32 target_label = 3;
+
+            /** For a rest API expose this with HATEOS */
+            string observing_template_token = 2;
+
+            int32 observing_template_label = 4;
+        }
+
+        repeated ObservingComponent observing_component = 1;
+        /**
+         * We need the token so we don't have to needlesly destroy/create OBs when saving.
+         *
+         * Also allows us to join the observing blocks in the right order when creating a full
+         * ObservingGroup
+         *
+         * api_visibility: operations read only
+         */
+        string token = 2 [(cfhtapi.options.api_visibility) = 4];
+        /**
+         *
+         * api_visibility: read only
+         */
+        int32 label = 3 [(cfhtapi.options.storage) = TRANSIENT, (cfhtapi.options.api_visibility) = 5];
+    }
+
+    // Next ID 15
+    string token = 1 [(cfhtapi.options.storage) = TRANSIENT];
+    int32 label = 6 [(cfhtapi.options.storage) = TRANSIENT];
+
+    ObservingGroupPriority og_priority = 4;
+
+    // In the oneof
+    // MonitoredObservingGroup monitored_observing_group = 8;
+    reserved 8;
+
+    oneof configuration {
+        SingleObservingGroup single_observing_group = 7;
+
+        SamplingObservingGroup sampling_observing_group = 9 [deprecated = true];
+
+        TargetMonitoringObservingGroup target_monitoring_observing_group = 13 [json_name='periodic_observing_group'];
+
+        TransientObservingGroup transient_observing_group = 14;
+    }
+
+    /**
+     *
+     * api_visibility: read only
+     */
+    repeated ObservingBlock observing_block = 10 [(cfhtapi.options.api_visibility) = 5, json_name = "read_observing_block"];
+
+    /**
+     *
+     * api_visibility: read only
+     */
+    map<int32, ObservingBlockCondition> observing_block_condition = 11 [(cfhtapi.options.api_visibility) = 5];
+
+    /**
+     *
+     * api_visibility: read only
+     */
+    int32 minimum_observing_block_count = 12 [(cfhtapi.options.api_visibility) = 5];
+
+    /**
+     *
+     * api_visibility: operations read only
+     */
+    SubTotalsData sub_totals = 5 [(cfhtapi.options.api_visibility) = 4, json_name = "subTotals"];
+
+    Reel reel = 2 [deprecated = true];
+    cfhtapi.types.BigInteger sybase_og_id = 3 [(cfhtapi.options.storage) = SYBASE_HINT];
+}
+
+/**
+ * SingleObservationGroup means one observing block. It's the simplest observation structure, and has no contingencies
+ * on any other observations.
+ */
+message SingleObservingGroup {
+    ObservingGroupData.ObservingBlock observing_block = 1;
+}
+
+message MonitorTimeConstraint {
+    int32 number_of_iterations = 1;
+    int32 minimum_number_of_iterations = 2;
+    int64 wait_between_observations_millis = 3;
+    int64 wait_tolerance = 4;
+}
+
+/*
+ * MonitoredObservingGroup implies an observing group with >1 iterations
+ *
+ */
+message MonitoredObservingGroup {
+
+    ObservingGroupData.ObservingBlock observing_block = 1;
+    MonitorTimeConstraint monitor = 2;
+}
+
+/**
+ * Used to sample a target at a given frequency.
+ *
+ * It is a very simple pattern which means, observe every night if the target is visible.
+ */
+message SamplingTimeConstraint {
+    int32 number_of_samples = 1;
+
+    int32 minimum_number_of_samples = 2;
+
+    int64 wait_period_millis = 3;
+
+    int64 tolerance_min_millis = 4;
+
+    int64 tolerance_max_millis = 5;
+
+    /**
+     * Frequency to sample at
+     */
+    double sample_frequency = 6;
+}
+
+message SamplingObservingGroup {
+    ObservingGroupData.ObservingBlock observing_block = 1;
+    SamplingTimeConstraint sampling = 2;
+}
+
+message TargetMonitoringObservingGroup {
+    message TimeConstraint {
+        /** How many observations to take */
+        int32 number_of_iterations = 1;
+
+        /** If weather becomes an issue, minimum amount of iterations that some science can still be acomplished in */
+        int32 minimum_number_of_iterations = 2;
+
+        cfhtapi.types.Duration time_interval = 3;
+
+        cfhtapi.types.Duration time_interval_tolerance_min = 4;
+
+        cfhtapi.types.Duration time_interval_tolerance_max = 5;
+
+        /**
+         * T0 the monitor should start at.
+         *
+         * optional, if omitted CFHT will start observing at QC's discretion
+         */
+        int64 t0_millis = 6;
+
+        bool within_same_camera_run = 10;
+    }
+
+    ObservingGroupData.ObservingBlock observing_block = 1;
+
+    TimeConstraint time_constraint = 2;
+}
+
+
+message TransientObservingGroup {
+    message TimeConstraint {
+        repeated ObservingBlockCondition.Window window = 1;
+    }
+
+    ObservingGroupData.ObservingBlock observing_block = 1;
+
+    TimeConstraint time_constraint = 2 [json_name = 'constraint'];
+}
+
+message ObservingBlockCondition {
+    message Requisite {
+        // Next Index 13
+
+        /**
+         * This should match the position of the observing block in the repeated observing_block list.
+         */
+        int32 requisite_observing_block_index = 11;
+
+        /** Minimum Time to wait after the requisite_ob exposure has been taken */
+        int64 wait_period_min_millis = 3;
+
+        /** Optimal time to wait for observation */
+        int64 wait_period_millis = 12;
+
+        oneof wait_max {
+            /** Maximum Time to wait after the requisite_ob exposure has been taken */
+            int64 wait_period_max_millis = 4;
+
+            /** If true, then this observation can happen any time after the requisite */
+            bool unbounded = 5;
+        }
+
+        oneof camera_run {
+            /* How important is this? */
+            bool seperate_camera_run = 9;
+            /* If true, must be in the same camera run */
+            bool same_camera_run = 10;
+        }
+    }
+
+    message Window {
+        int64 observe_after = 5;
+        int64 observe_before = 6;
+    }
+
+    /*
+     */
+    repeated Requisite requisite = 1 [json_name = "pre_requisite"];
+
+    /*
+     * This window is just scheduling constraints for when you want observations to be made,
+     * When calculating expires_at for this OB, the window will be used masked by the target visibility
+     * which is calculated from airmass & RA/DEC
+     *
+     * Windows can not overlap, and will always be stored in order from now to future.
+     */
+    repeated Window window = 2;
+}
+
+// Deprecated
+
+message Reel {
+    option deprecated = true;
+
+
+    message ObservingBlock {
+        string observing_block_token = 1;
+
+        ObservingBlockCondition condition = 2;
+    }
+
+    /* Order matches the configuration list */
+    repeated ObservingBlock observing_block = 1;
+
+    message Configuration {
+        message Standard {
+            string empty = 1;
+        }
+
+        message Monitor {
+            int32 number_of_iterations = 1;
+            int32 minimum_number_of_iterations = 2;
+            int64 wait_between_observations_millis = 3;
+            int64 wait_tolerance = 4;
+        }
+
+        /**
+         * Used to sample a target at a given frequency.
+         *
+         * It is a very simple pattern which means, observe every night if the target is visible.
+         */
+        message Sampling {
+            int32 number_of_samples = 1;
+            int32 minimum_number_of_samples = 2;
+        }
+
+        oneof configuration {
+            Standard standard = 1 [deprecated = true];
+            // more
+
+            bool single = 2;
+            Monitor monitor = 3 [json_name = "monitored"];
+            /**
+             * When custom is true, the observing_block list is directly
+             * set by the end user.
+             */
+            bool custom = 4;
+
+            Sampling sampling = 5;
+        }
+    }
+
+    Configuration configuration = 2;
+
+    /*
+     * The maximum number of OBs which can be omitted but still provide science value.
+     * It's main purpose is to assist the scheduling/weighting algorythm.
+     */
+    int32 minimum_count = 3;
+}

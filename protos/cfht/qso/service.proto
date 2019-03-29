@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package cfht.qso;
+option java_package = "edu.hawaii.cfht.protos.qso";
+option java_outer_classname = "ServiceProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "cfht/qso/domain.proto";
+import "google/api/annotations.proto";
+import "cfhtapi/types.proto";
+
+/*
+ * This is the minimum data needed for JJ
+ */
+message ProgramConfiguration {
+    /* A list of targets */
+    repeated Target target = 1 [json_name = "targets"];
+    /* A list of observing blocks */
+    repeated ObservingBlock observing_block = 2 [json_name = "observing_blocks"];
+    /* A list of observing_groups */
+    repeated ObservingGroup observing_group = 3 [json_name = "observing_groups"];
+}
+
+message AppendProgramConfigurationRequest {
+    /* Runid of program */
+    string runid = 1;
+    /* For weak sanity checking before updating someones program */
+    string pi_login = 2;
+    /* Additions to append to the specified program */
+    ProgramConfiguration program_configuration = 3;
+    /* Template Instructions, different way of doing the same thing testing it out... makes sense for CFIS */
+    message Template {
+        message ObservingBlockTemplate {
+            /*
+             * Client Identifier for template, referenced by the OGTemplate and used for idempotence when
+             * generating the ob tokesn
+             */
+            string client_token = 1;
+            /*
+             * Constraints this OB must be observed under
+             *
+             * For now, this is restricted to 1 constraint
+             */
+            repeated Identifier constraint_identifier = 3 [json_name = "constraint_identifiers"];
+            /*
+             * InstrumentConfigs that apply to this OB
+             *
+             * For now, this is restricted to 1 instrument config
+             */
+            repeated Identifier instrument_config_identifier = 4 [json_name = "instrument_config_identifiers"];
+        }
+
+        message OgTemplate {
+            Identifier observing_group_identifier = 1;
+
+            string observing_block_template_client_token = 2;
+
+            repeated Identifier target_identifier = 3 [json_name = "target_identifiers"];
+        }
+
+        repeated ObservingBlockTemplate observing_block_template = 1;
+        repeated OgTemplate observing_group_template = 2;
+        bool create_ob_labels_from_fixed_target_labels = 3;
+    }
+
+    Template template = 4;
+}
+
+message Errors {
+    repeated string message = 1 [json_name = "messages"];
+}
+
+message PersistedObjects {
+    repeated Identifier persisted_client_identifier = 1 [json_name = "persisted_target_identifiers"];
+    // Duplicates are not updated
+    repeated Identifier duplicate_client_identifier = 2 [json_name = "duplicate_target_identifiers"];
+
+    repeated Identifier persisted_ob_identifier = 3 [json_name = "persisted_ob_identifiers"];
+    // Duplicates are not updated
+    repeated Identifier duplicate_ob_identifier = 4 [json_name = "duplicate_ob_identifiers"];
+
+    repeated Identifier persisted_og_identifier = 5 [json_name = "persisted_og_identifiers"];
+    // Duplicates are not updated
+    repeated Identifier duplicate_og_identifier = 6 [json_name = "duplicate_og_identifiers"];
+}
+
+message AppendProgramConfigurationResponse {
+    /* For now errors are known by the CFHT staff... will need to
+     * figure out a way to communicate these back
+     */
+    bool success = 1;
+    oneof result {
+        PersistedObjects persisted_object = 2 [json_name = "persisted_objects"];
+        Errors error = 3 [json_name = "errors"];
+    }
+}
+
+/* The ProgramService allows reading, updating, and creating data within a given program.
+ *
+ *
+ * DEVNOTE: json only supports 2^52 for longs,
+ * not 2^64, because it encodes longs as doubles.
+ * It will not be needed, but if needed use a string
+ * in json
+ */
+service ProgramService {
+    /* Takes a program configuration, and adds all resources specified with client token to the prgogram.
+     * Before any action is taken, all server_tokens are validated for existence first.  Resources
+     * which reference server tokens are then created and linked as requested
+     */
+    rpc AppendProgramConfiguration (AppendProgramConfigurationRequest) returns (AppendProgramConfigurationResponse) {
+        option (google.api.http) = {
+            //TODO interpolate runid here
+            post: "/program/append-program-configuration"
+            body: "*"
+        };
+    }
+}

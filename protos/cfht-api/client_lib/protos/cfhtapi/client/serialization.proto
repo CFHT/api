@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+/* just a note, all timing (etime, itime, overheads) data is changed to int64 and will express time in milliseconds */
+
+package cfhtapi.client;
+
+// Used by wainscoat's scripts
+message EphemerisFile {
+  /* Target which moves along a path */
+  message MovingTarget {
+    /* the triplet of time,ra,dec */
+    message Ephemeris {
+      double mjd = 1;
+      double ra = 2;
+      double dec = 3;
+    }
+    repeated Ephemeris ephemeris_point = 1 [json_name = "ephemeris_points"];
+  }
+
+  MovingTarget moving_target = 8 [json_name = "moving_targets"];
+}

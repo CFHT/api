@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package cfht.authorization.data;
+
+option java_package = "edu.hawaii.cfht.protos.authorization.data";
+option java_multiple_files = true;
+
+/* DEVNOTE: Enum values are power of 2 to allow them to checked with bit operations */
+enum Permission {
+  /* Admin */
+  ADMIN = 0;
+  /* Read phase2 data */
+  PH2_READ = 1;
+  /* Make updates to Phase2 */
+  PH2_WRITE = 2;
+
+  /* View the account.cfht.hawaii.edu page */
+  VIEW_ACCOUNT = 3;
+
+  /* Used for interal tools */
+  OPERATIONS_READ = 4;
+  OPERATIONS_WRITE = 5;
+}
+
+message PermissionWithDescription {
+  Permission permission = 1;
+  string description = 2;
+}
+
+message GrantData {
+  message Ph2Condition {
+    /* Use this to grant the permission for the entities owned by the given run_id. */
+    repeated string run_id = 2 [json_name = "run_ids"];
+    /* Use this to grant the permission for the entities owned by the given PI(s). */
+    repeated string pi_login = 3 [json_name = "pi_logins", deprecated = true];
+
+  }
+
+  message Condition {
+    oneof scope {
+      /* If true, this will grant the permission for all entities */
+      bool global = 1;
+
+      /*
+       * Only applies to ph2_read and ph2_write.
+       * This is enforced when creating in the API
+       */
+      Ph2Condition ph2_condition = 2;
+
+      /* Allow the permission for the resource if owned by this user */
+      string user_token = 4;
+    }
+  }
+
+  message Grant {
+    /* Permissions that this grant with give authorization to. */
+    Permission permission = 1;
+
+    /* Condition that must be met to give authorization. */
+    Condition condition = 2;
+  }
+
+  repeated Grant grant = 1;
+}
+
+message SessionData {
+  string free_ipa_cookie = 1;
+}

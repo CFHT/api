@@ -1,0 +1,418 @@
+syntax = "proto3";
+
+package cfht.qso; //.wip;
+
+//message MechanicalOffset {
+//    enum Type {
+//        TARGET =1;
+//        SKY = 2;
+//        DARK = 3;
+//        FLAT = 4;
+//    }
+//    message Offset {
+//        string exposure_number = 1;
+//        qso_api.Coordinate offset = 2;
+//        /* For dithering patterns type is always target */
+//        Type type = 3;
+//    }
+//
+//    message Config {
+//        string name = 1;
+//        string description = 2;
+//
+//        /* Used for calculating cost for this pattern */
+//        string cost_labl = 3;
+//        message Dithering {
+//
+//        }
+//
+//        message Nodding {
+//            double scale = 1;
+//            start_sequence = 2;
+//            target_db  = 3;
+//        }
+//    }
+//
+//    repeated Offset offsets = 1;
+//    Config config = 2;
+//
+//}
+//
+//message MechanicalOffset {
+//    repeated SkyCoordinate relative_offset = 1;
+//}
+//
+//message Exposure {
+//    /* completly calculated */
+//    string snr_730nm = 1;
+//}
+// 3 high level instrument clasifications
+// Imaging
+// FFT
+// Spectrograph
+// Needs to be cleared by Astronomers
+//message ExposureConfiguration {
+//    message EspadonsExposureConfiguration {
+//TODO: cleanup - c++ scoping rules
+// TODO: move to another object
+//        message O {
+//            enum ObservingMode {
+//                Unknown = 0;
+//                Polarimetry = 1;
+//                Spectroscopy_star = 2;
+//                Spectroscopy_sky = 3;
+//            }
+//        }
+//        message R {
+//            enum ReadoutMode {
+//                Unknown = 0;
+//                Normal = 1;
+//                Slow = 2;
+//                Fast = 3;
+//            }
+//        }
+//        message S {
+//            enum StokesParameter {
+//                Uknown = 0;
+//                Q = 1;
+//                U = 2;
+//                V = 3;
+//                W = 4;
+//                I = 5;
+//            }
+//        }
+//
+//        O.ObservingMode observing_mode = 1;
+//        R.ReadoutMode readout_mode = 2;
+//        S.StokesParameter stokes_parameter = 3;
+//        string per_exposure_time_seconds = 4;
+//        string number_of_sequences = 5;
+//    }
+//
+//    message MegacamExposureConfiguration {
+//        enum Filter {
+//            Unknown = 0;
+//            u = 1;
+//            g = 2;
+//            i = 3;
+//            r = 4;
+//            z = 5;
+//            gri = 6;
+//            CaHK = 7;
+//            Ha = 8;
+//            HaOFF = 9;
+//            OIII = 10;
+//            OIIIOFF = 11;
+//            uS = 12;
+//            gS = 13;
+//            rS = 14;
+//            iS = 15;
+//            zS = 16;
+//            N393S = 17;
+//            HaS = 18;
+//            HaOFFS = 19;
+//            TiOS = 20;
+//            CNS = 21;
+//            OIIIS = 22;
+//            PHGS = 23;
+//
+//        }
+//        /* Is this related to the dithering pattern? */
+//        message Pattern {
+//            string name = 1;
+//            string scale_factor = 2;
+//        }
+//        /* Go look this up */
+//        enum Binning {
+//            one_one = 1,
+//            two_two = 1,
+//            four_four = 1,
+//
+//        }
+//
+//        Filter filter = 1;
+//        Binning binning = 2;
+//        Pattern pattern = 3;
+//        string per_exposure_time_seconds = 4;
+//    }
+//    message WircamExposureConfiguration {
+//        enum Filter {
+//            UNKNOWN = 0;
+//            W = 1;
+//            H = 2;
+//            J = 3;
+//            Ks = 4;
+//            Y = 5;
+//            H2 = 6;
+//            KCont = 7;
+//            CH4On = 8;
+//            CH4Off = 9;
+//            LowOH1 = 10;
+//            LowOH2 = 11;
+//            BrG = 12;
+//            CO = 13;
+//            COnar = 14;
+//        }
+//        Filter filter = 1;
+//        /* Needed, or handled by Mechanical Offset? */
+//        bool micro_dithering = 4;
+//        /* microexosuers */
+//        int32 exposures_per_dp_position = 5 [range 1-12];
+//
+//        /* This is covered by mechanical offsets, move out */
+//        message Pattern {
+//            string name = 1;
+//            string scale_factor = 2;
+//        }
+//
+//        Pattern pattern = 13;
+//    }
+//    message SitelConfiguration {
+//         Need to configure this configuration
+//        string resolution = 12;
+//        /* This should be on target too , sitell, espedons, spirou*/
+//        double snrwavelength = 13;
+//        /* position */
+//         zenith target
+//        /* mode */
+//         Laser Phase
+//        /* resolution */
+//         hires medres
+//    }
+//
+//    string id = 1;
+//    string name = 2;
+//    /* This is a calculated value for the
+//     total exposure time for the given
+//     configuration.
+//
+//     i.e. this will be for weircam the # exposures * the wiercam exposure_time_seconds
+//     (Calculated)
+//
+//     NOTO: We need to support setting this directly, need another field to indicate if it's derived or not.
+//     exptime
+//     */
+//    string total_exposure_time_seconds = 3;
+//
+//    oneof configuration {
+//        EspadonsExposureConfiguration espadons_configuration = 4;
+//        MegacamExposureConfiguration megacam_configuration = 5;
+//        WircamExposureConfiguration wircam_configuration = 6;
+//        SitelConfiguration sitel_configuration = 7;
+//    }
+//
+//    /* ITME = etime + overhead */
+//    string itime_seconds = 8;
+//
+//    string observingmode_name = 9;
+//    string ic_pradius = 15;
+//    string ic_exptime = 18;
+//    string ic_itime = 20;
+//
+//    message Constraint {
+//        string iq_seeing;
+//        string max_iq
+//        /* Somewhat related to iq, but needs to be seperated differently */
+//        string airmass.
+//        double max_extinction
+//
+//        double moon_distance_arc_lenght = 2;
+//        double moon_distance_arc_length_tolerance = 3;
+//
+//
+//        /* Sky background - will map dark, light, etc to this */
+//        electrons_per_second_per_pixel
+//
+//    }
+//
+//    double requested_snr = 21;
+//}
+//
+//message Reel {
+//    message Condition {
+//        string ob_token = 1;
+//        /* Do we need to support two contingencies? */
+//        /* If not present - no contingency */
+//        string requisite_ob_token = 2;
+//
+//        /* Minimum Time to wait after the requisite_ob exposure has been taken */
+//        int64 wait_period_min_millis = 3;
+//        /* Maximum Time to wait after the requisite_ob exposure has been taken */
+//        int64 wait_period_max_millis = 4;
+//
+//        /* Absolute date to observe this target after */
+//        MJD observe_after = 5;
+//        /* Absolute date this must be observed before */
+//        MJD observe_before = 6;
+//
+//        bool optional = 7;
+//        bool contiguous = 8;
+//    }
+//
+//    repeated Condition condition = 1;
+//}
+//
+//message ReelConfig {
+//    message Monitored {
+//        int32 min_observations = 1;
+//        int32 max_observations = 2;
+//        int32 delay = 3;
+//    }
+//
+//    oneof config {
+//      Monitored monitored = 1;
+//      more
+//    }
+//}
+//
+//message Project {
+//    /** Calculated, read only, floating point number between 0 and 1 */
+//    double percentage_complete = 1;
+//}
+//
+//message Target {
+//    message InstrumentConfig {
+//        message WircamInstrumentConfig {
+//            message ExclusionZone {
+//                SkyCoord sky_coordinate = 1;
+//            }
+//
+//            repeated ExclusionZone exclusion_zones = 1;
+//        }
+//
+//        oneof config {
+//          WircamInstrumentConfig wircam_instrument_config = 1;
+//        }
+//    }
+//
+//    /** The Target.instrument_config and ExposureConfig are both available to the instrument */
+//    InstrumentConfig instrument_config = 1;
+//}
+//
+//
+//message ObservedInformatio {
+//    message Target {
+//        /* calculated by adjusting coordinate from input equinox */
+//        procession_coordinate
+//    }
+//}
+//
+///*
+//
+//message Program {
+//    enum Instrument {
+//        Unknown = 0;
+//        / Wide field imager /
+//        Megagam = 1;
+//        / Spectrum /
+//        Espadons = 2;
+//        / Infared imager /
+//        Wircam = 3;
+//        / Wide field spectrum /
+//        Sitel = 4;
+//    }
+//    message ProgramFeatures {
+//        string accept15 = 3;
+//        string needs_staring = 4;
+//        string is_monitor = 5;
+//        string needs_og_schedule = 6;
+//        string is_reel = 7;
+//        string is_moving_fields = 8;
+//        string pi_stdstars = 9;
+//        string is_gzones = 10;
+//        string is_nodding = 11;
+//        string e_use_snr = 12;
+//        string ifail_name = 13;
+//        string needs_hourangle = 14;
+//        string defsnrccdpix = 15;
+//        string def_wavelength = 16;
+//        string ph2_comment = 17;
+//        string calib_comments = 18;
+//        string sn_comments = 19;
+//        string is_quick_data_access = 20;
+//        string daccess_name = 21;
+//        string dac_comment = 22;
+//    }
+//    message ContactInfo {
+//        message Address {
+//            string addr1 = 1;
+//            string addr2 = 2;
+//            string addr3 = 3;
+//            string city = 4;
+//            string state = 5;
+//            string zip = 6;
+//            string country = 7;
+//        }
+//        message User {
+//            string fname = 1;
+//            string lname = 2;
+//            string phone = 3;
+//            string fax = 4;
+//            string email = 6;
+//            Address address = 8;
+//        }
+//        message Collaborator {
+//            string fname = 1;
+//            string lname = 2;
+//            string email = 3;
+//        }
+//
+//
+//        User primary_user = 8;
+//         These two fields are specific to primary user only
+//        string user_institute = 9;
+//        string cadc_username = 10;
+//        User secondary_user = 11;
+//
+//        repeated Collaborator collaboroter = 15;
+//    }
+//
+//
+//
+//
+//    string runid = 1;
+//    ContactInfo contact_info = 2;
+//    / Instrument for this program /
+//    Instrument instrument = 3;
+//    string tac_rank = 4;
+//    string itime_alloc = 5;
+//    string title = 6;
+//    string abstract = 7;
+//    string agency_name = 8;
+//    string ptype_name = 9;
+//    string pgrade_name = 10;
+//
+//    ProgramFeatures program_features = 12;
+//    repeated cfht.qso.Target target = 13;
+//    repeated cfht.qso.DitheringPattern dithering_pattern = 15;
+//    repeated cfht.qso.InstrumentConfiguration instrument_config = 16;
+//    repeated cfht.qso.ObservingConstraint observing_constraint = 17;
+//    repeated cfht.qso.ObservingBlock observing_block = 18;
+//    repeated cfht.qso.ObservingGroup observing_group = 19;
+//}
+//
+//message DitheringPattern {
+//    message Offset {
+//        string expnum = 1;
+//        qso_api.Coordinate offset = 2;
+//    }
+//    string name = 1;
+//    string description = 2;
+//    repeated Offset offsets = 3;
+//}
+//
+//message ObservingConstraint {
+//    string cons_label = 1;
+//    string cons_name = 2;
+//    string iq_name = 3;
+//    string maxiq_name = 4;
+//    string skybg_name = 5;
+//    string cons_max_iq_entry = 6;
+//    string airmass = 7;
+//    string cons_max_extinction = 8;
+//    string cons_moon_dist = 9;
+//    string cons_moon_dist_tol = 10;
+//}
+//
+//
+//*/

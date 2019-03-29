@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package etc.megacam;
+
+message CalculateSnrRequest {
+}
+
+
+message CalculateSnrResponse {
+}
+
+service Snr {
+    rpc CalculateSnr (CalculateSnrRequest) returns (CalculateSnrResponse) {
+    }
+}

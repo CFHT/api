@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package cfhtapi.options;
+option java_package = "edu.hawaii.cfht.protos.options";
+option java_outer_classname = "OptionsProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+import "google/protobuf/descriptor.proto";
+
+enum Storage {
+    /* Read/Write saved to database */
+    PROPERTY = 0;
+    /* Stored in mariadb, but not to be relied on externally, helps for optimizations during syncing */
+    SYBASE_HINT = 1;
+    /* Not stored in database, but present in the API */
+    TRANSIENT = 2;
+}
+
+enum ApiVisibility {
+    /**
+     * By default fields are public everywhere, without any qualifier
+     */
+    PUBLIC = 0;
+
+    EXTERNAL_READ = 1;
+
+    EXTERNAL_WRITE = 2;
+
+    OPERATIONS_READ =  3;
+
+    OPERATIONS_WRITE = 4;
+
+    /**
+     * Not in any APIs, but storage needed for internal processes
+     *
+     * Unfortunately, because the default is public, this needs special handling
+     */
+    OMITTED = -1;
+}
+
+extend google.protobuf.FieldOptions {
+    repeated Storage storage = 12380;
+
+    /**
+     * Common Definiitons
+     * 5  - EXTERNAL_READ & OPERATIONS_READ
+     * 15 - same as public
+     * 10 - EXTERNAL_WRITE & OPERATIONS_WRITE
+     * 12 - OPERATIONS_READ & OPERATIONS_WRITE (operations only)
+     * 4  - OPERATIONS_READ
+     */
+    int32 api_visibility = 12382;
+}

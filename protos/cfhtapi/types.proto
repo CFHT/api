@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package cfhtapi.types;
+option java_package = "edu.hawaii.cfht.protos.types";
+option java_outer_classname = "TypesProtos";
+option java_multiple_files = true;
+option java_generic_services = true;
+
+enum InstrumentType {
+    UNKNOWN = 0;
+    CFH12K = 1;
+    MEGACAM = 2;
+    WIRCAM = 3;
+    ESPADONS = 4;
+    SITELLE = 5;
+    SPIROU = 6;
+}
+
+/*
+TODO: Will allow us to handle  exposure requirements for differnt hardware - change to:
+    enum All {
+        TARGET = 0;
+        SKY = 1;
+        DARK = 2;
+        FLAT = 3;
+    }
+
+    enum Megacam {
+        SCIENCE = 0;
+        SNAP = 1;
+    }
+
+    enum Espadons {
+        POLAR_1 = 0;
+        POLAR_2 = 1;
+        POLAR_3 = 2;
+        POLAR_4 = 3;
+    }
+
+    All base_type = 1;
+
+    oneof instrument{
+        Megacam megacam = 2;
+        Espadons espadons = 3;
+    }
+*/
+
+enum ExposureType {
+    OBJECT = 0;
+
+    TARGET = 1 [deprecated = true];
+    SKY = 2;
+
+    DARK = 3;
+    FLAT = 4;
+    SNAP = 5;
+
+    BIAS = 6;
+    FOCUS = 7;
+    ALIGN = 8;
+    COMPARISON = 9;
+
+    ACQUIRE = 10;
+}
+
+message Header {
+    string name = 1;
+    string value = 2;
+}
+/* TODO: We should discuss using a integer, or float representation
+ * of RA & Dec.  Our goal for the JSON to be computer & developer
+ * friendly, over human readability.  We can write tools to make
+ * reading these easier.  That means prefer types that can do maths
+ * over strings
+ */
+message SkyCoordinate {
+    /* Right ascension, in degrees */
+    double ra = 1; // range 0 - 360
+    /* Declination, in degrees */
+    double dec = 2; // range -90 - 90
+}
+
+message OffsetCoordinate {
+    /* Right ascension, in degrees */
+    double ra_offset = 1; // relative amount -360 - 360
+    /* Declination, in degrees */
+    double dec_offset = 2; // relative amount, -90 - 90
+}
+
+// Used for primary database fields in sybase
+// Should be parsed as a BigInteger
+message BigInteger {
+    string value = 1;
+}
+
+// Sybase uses big decimal for "percise" fields, but double should be good enough in new system for all use cases
+message BigDecimal {
+    string value = 1;
+}
+
+message DoubleMinMax {
+  double min = 1;
+  double max = 2;
+}
+
+enum DurationUnit {
+    DAYS = 0;
+    HOURS = 1;
+    MINUTES = 2;
+    SECONDS = 3;
+}
+
+message Duration {
+    int64 millis = 1;
+
+    /**
+     * Only needed for rendering UI, should display the duration using the units specified.
+     * If unset, assume DAYS
+     */
+    DurationUnit display_unit = 2;
+
+}
+

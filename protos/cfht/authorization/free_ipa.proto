@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package cfht.authorization;
+
+option java_package = "edu.hawaii.cfht.protos.free_ipa";
+option java_multiple_files = true;
+
+message Error {
+    message Data {
+        string name = 1;
+    }
+    int32 code = 1;
+    Data data = 2;
+    string message = 3;
+    string name = 4;
+}
+
+message UserShowResponse {
+    message Result {
+        message Message {
+            string code = 1;
+            string message = 2;
+            string name = 3;
+            string type = 4;
+        }
+
+        message ResultInner {
+            repeated string memberof_group = 1 [json_name = "memberof_group"];
+            repeated string given_name = 2 [json_name = "givenname" ];
+        }
+
+        repeated Message message = 1 [json_name = "messages"];
+        ResultInner result = 2;
+    }
+
+    Error error = 1;
+    Result result = 2;
+}
+
+message PasswordChangeResponse {
+    message Result {
+        bool result = 1;
+        string summary = 2;
+        string value = 3;
+    }
+    Error error = 1;
+    Result result = 2;
+}

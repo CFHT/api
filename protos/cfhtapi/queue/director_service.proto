@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package cfhtapi.queue;
+option java_package = "edu.hawaii.cfht.protos.observing.queue";
+option java_outer_classname = "DirectorProtos";
+option java_generic_services = true;
+
+import "cfhtapi/queue/queue_service.proto";
+import "google/api/annotations.proto";
+
+enum DirectorStrategy {
+    CMD_SRV = 0;
+    RAW_CONNECTION = 1;
+}
+
+message UpdateDirectorStrategyRequest {
+    DirectorStrategy director_strategy = 1;
+}
+
+message UpdateDirectorStrategyResponse {
+    bool success = 1;
+    Errors errors = 2;
+
+}
+
+message ShowDirectorStrategyRequest {
+}
+
+message ShowDirectorStrategyResponse {
+    bool success = 1;
+    Errors errors = 2;
+    DirectorStrategy director_strategy = 3;
+}
+
+service DirectorServiceProto {
+    rpc UpdateDirectorStrategy (UpdateDirectorStrategyRequest) returns (UpdateDirectorStrategyResponse) {
+        option (google.api.http) = {
+            put: "/q/director/strategy/{director_strategy}"
+        };
+    }
+
+    rpc ShowChangeDirectorStrategy (ShowDirectorStrategyRequest) returns (ShowDirectorStrategyResponse) {
+        option (google.api.http) = {
+            get: "/q/director/strategy"
+        };
+    }
+}
+
